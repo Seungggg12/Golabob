@@ -1,0 +1,12 @@
+# Ignore hidden files and directories.
+.*
+
+# Keep Git ignore rules themselves.
+!.gitignore
+
+# Ignore installed dependencies at any depth.
+node_modules/
+
+# Ignore generated files.
+*.log
+coverage/
