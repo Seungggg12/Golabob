@@ -1,0 +1,19 @@
+{
+  "name": "golabob",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace @golabob/api run dev",
+    "dev:web": "npm --workspace @golabob/web run dev",
+    "dev:mobile": "npm --workspace @golabob/mobile run dev",
+    "build:api": "npm --workspace @golabob/api run build",
+    "build:web": "npm --workspace @golabob/web run build",
+    "test": "npm --workspace @golabob/api test"
+  },
+  "devDependencies": {
+    "@nestjs/platform-express": "^11.1.27"
+  }
+}
