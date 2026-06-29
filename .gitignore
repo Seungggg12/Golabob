@@ -3,10 +3,14 @@
 
 # Keep Git ignore rules themselves.
 !.gitignore
+!**/.env.example
 
 # Ignore installed dependencies at any depth.
 node_modules/
 
 # Ignore generated files.
 *.log
+*.tsbuildinfo
 coverage/
+dist/
+.expo/

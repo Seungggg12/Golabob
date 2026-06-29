@@ -1,0 +1,31 @@
+{
+  "name": "@golabob/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "build": "nest build",
+    "test": "node --test dist/**/*.spec.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "@nestjs/platform-express": "^11.1.27",
+    "@nestjs/swagger": "^11.4.4",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.5.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.23",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.15.34",
+    "@types/pg": "^8.15.4",
+    "typescript": "^5.8.3"
+  }
+}

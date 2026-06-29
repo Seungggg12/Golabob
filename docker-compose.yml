@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: golabob-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: golabob
+    ports:
+      - "5432:5432"
+    volumes:
+      - golabob-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d golabob"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  golabob-postgres-data:
