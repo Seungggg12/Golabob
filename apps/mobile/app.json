@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Golabob",
+    "slug": "golabob",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true
+  }
+}

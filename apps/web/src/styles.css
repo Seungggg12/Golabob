@@ -1,0 +1,168 @@
+:root {
+  color: #1d2624;
+  background: #f4f7f6;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 16px;
+  background: #246b5a;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button.secondary {
+  border: 1px solid #d7dfdc;
+  background: #fff;
+  color: #1d2624;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d7dfdc;
+  border-radius: 6px;
+  padding: 0 12px;
+}
+
+.app-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.top-bar,
+.panel {
+  border: 1px solid #d7dfdc;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 45px rgba(25, 43, 38, 0.1);
+}
+
+.top-bar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 24px;
+}
+
+.top-bar label {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 8px;
+  color: #62706c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #d88c36;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 32px;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+.status-grid,
+.workspace-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.status-grid {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 16px;
+}
+
+.workspace-grid {
+  grid-template-columns: minmax(240px, 0.8fr) minmax(240px, 0.8fr) minmax(320px, 1.4fr);
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel p {
+  margin-top: 6px;
+  color: #62706c;
+  font-size: 14px;
+}
+
+.form-stack {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.full-width {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.activity-log {
+  height: 302px;
+  margin: 16px 0 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid #d7dfdc;
+  border-radius: 6px;
+  background: #eef3f1;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .top-bar,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .status-grid,
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
