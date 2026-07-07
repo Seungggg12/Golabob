@@ -1,37 +1,45 @@
-import { FormEvent, useEffect, useState } from "react";
-
-interface PublicUser {
-  id: string;
-  email: string;
-  role: string;
-}
-
-interface AuthResponse {
-  user: PublicUser;
-  accessToken: string;
-}
+import { FormEvent, useMemo, useState } from "react";
+import { AppHeader } from "./components/AppHeader";
+import { BottomNav } from "./components/BottomNav";
+import { AuthScreen } from "./screens/AuthScreen";
+import { CreateOffer } from "./screens/CreateOffer";
+import { CreateRequest } from "./screens/CreateRequest";
+import { MyPage } from "./screens/MyPage";
+import { OfferComparison } from "./screens/OfferComparison";
+import { OwnerHome } from "./screens/OwnerHome";
+import { OwnerRequestDetail } from "./screens/OwnerRequestDetail";
+import { ReservationConfirmation } from "./screens/ReservationConfirmation";
+import { RequestWaiting } from "./screens/RequestWaiting";
+import { RoleSelection } from "./screens/RoleSelection";
+import { SplashOnboarding } from "./screens/SplashOnboarding";
+import { UserHome } from "./screens/UserHome";
+import { AppScreen, AuthMode, AuthResponse, PublicUser, UserRole } from "./types";
 
 const defaultApiBaseUrl = "http://localhost:3000";
 
 function App() {
+  const [screen, setScreen] = useState<AppScreen>("splash");
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
   const [accessToken, setAccessToken] = useState(
     () => localStorage.getItem("golabobAccessToken") || "",
   );
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
-  const [health, setHealth] = useState("확인 전");
-  const [log, setLog] = useState("대기 중");
-  const [signupEmail, setSignupEmail] = useState("guest@example.com");
-  const [signupPassword, setSignupPassword] = useState("password1234");
-  const [signupRole, setSignupRole] = useState("guest");
-  const [loginEmail, setLoginEmail] = useState("guest@example.com");
-  const [loginPassword, setLoginPassword] = useState("password1234");
+  const [email, setEmail] = useState("user@example.com");
+  const [password, setPassword] = useState("password1234");
+  const [role, setRole] = useState<UserRole>("user");
+  const [message, setMessage] = useState("회식 조건을 올리고 맞춤 오퍼를 받아보세요.");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const appendLog = (title: string, payload: unknown) => {
-    const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
-    const next = `[${new Date().toLocaleTimeString("ko-KR", { hour12: false })}] ${title}\n${body}`;
-    setLog((prev) => (prev === "대기 중" ? next : `${next}\n\n${prev}`));
-  };
+  const title = authMode === "login" ? "다시 만나서 반가워요" : "골라밥 시작하기";
+  const submitText = authMode === "login" ? "로그인" : "회원가입";
+  const userLabel = useMemo(() => {
+    if (!currentUser) {
+      return "로그인 전";
+    }
+
+    return `${currentUser.email} / ${currentUser.role}`;
+  }, [currentUser]);
 
   const requestJson = async <T,>(path: string, options: RequestInit = {}) => {
     const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}${path}`, {
@@ -51,70 +59,48 @@ function App() {
     return body as T;
   };
 
-  const checkHealth = async () => {
-    try {
-      const body = await requestJson<{ status: string; message: string }>("/api/health");
-      setHealth(`${body.status}: ${body.message}`);
-      appendLog("GET /api/health", body);
-    } catch (error) {
-      setHealth(error instanceof Error ? error.message : "요청 실패");
-      appendLog("GET /api/health 실패", String(error));
-    }
-  };
-
-  const signup = async (event: FormEvent) => {
+  const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
+    setIsLoading(true);
+    setMessage("요청을 처리하는 중입니다.");
 
     try {
-      const body = await requestJson<AuthResponse>("/api/auth/signup", {
+      const path = authMode === "login" ? "/api/auth/login" : "/api/auth/signup";
+      const payload =
+        authMode === "login" ? { email, password } : { email, password, role };
+      const body = await requestJson<AuthResponse>(path, {
         method: "POST",
-        body: JSON.stringify({
-          email: signupEmail,
-          password: signupPassword,
-          role: signupRole,
-        }),
+        body: JSON.stringify(payload),
       });
+
       localStorage.setItem("golabobAccessToken", body.accessToken);
       setAccessToken(body.accessToken);
       setCurrentUser(body.user);
-      appendLog("POST /api/auth/signup", body);
+      setRole(body.user.role === "owner" ? "owner" : "user");
+      setMessage(`${body.user.email}님, 회식 요청을 등록할 준비가 됐습니다.`);
+      setScreen("roleSelection");
     } catch (error) {
-      appendLog("POST /api/auth/signup 실패", String(error));
-    }
-  };
-
-  const login = async (event: FormEvent) => {
-    event.preventDefault();
-
-    try {
-      const body = await requestJson<AuthResponse>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: loginEmail,
-          password: loginPassword,
-        }),
-      });
-      localStorage.setItem("golabobAccessToken", body.accessToken);
-      setAccessToken(body.accessToken);
-      setCurrentUser(body.user);
-      appendLog("POST /api/auth/login", body);
-    } catch (error) {
-      appendLog("POST /api/auth/login 실패", String(error));
+      setMessage(error instanceof Error ? error.message : "요청에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchMe = async () => {
     if (!accessToken) {
-      appendLog("GET /api/auth/me 실패", "로그인 토큰이 없습니다.");
+      setMessage("저장된 로그인 토큰이 없습니다.");
       return;
     }
 
+    setIsLoading(true);
     try {
       const body = await requestJson<{ user: PublicUser }>("/api/auth/me");
       setCurrentUser(body.user);
-      appendLog("GET /api/auth/me", body);
+      setMessage(`${body.user.email} 계정으로 로그인되어 있습니다.`);
     } catch (error) {
-      appendLog("GET /api/auth/me 실패", String(error));
+      setMessage(error instanceof Error ? error.message : "내 정보 조회에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -122,84 +108,77 @@ function App() {
     localStorage.removeItem("golabobAccessToken");
     setAccessToken("");
     setCurrentUser(null);
-    appendLog("로그아웃", "로컬 토큰을 삭제했습니다.");
+    setScreen("splash");
+    setMessage("로그아웃했습니다.");
   };
 
-  useEffect(() => {
-    checkHealth();
-  }, []);
+  if (screen === "splash") {
+    return (
+      <SplashOnboarding
+        onStart={() => {
+          setAuthMode("login");
+          setScreen("auth");
+        }}
+      />
+    );
+  }
+
+  if (screen === "roleSelection") {
+    return (
+      <RoleSelection
+        role={role}
+        setRole={setRole}
+        onContinue={() => {
+          setScreen(role === "owner" ? "ownerHome" : "userHome");
+        }}
+      />
+    );
+  }
+
+  if (screen === "auth") {
+    return (
+      <AuthScreen
+        apiBaseUrl={apiBaseUrl}
+        authMode={authMode}
+        email={email}
+        fetchMe={fetchMe}
+        isLoading={isLoading}
+        message={message}
+        password={password}
+        role={role}
+        setApiBaseUrl={setApiBaseUrl}
+        setAuthMode={setAuthMode}
+        setEmail={setEmail}
+        setPassword={setPassword}
+        setRole={setRole}
+        submitAuth={submitAuth}
+        submitText={submitText}
+        title={title}
+        userLabel={userLabel}
+        onBack={() => setScreen("splash")}
+        onLogout={logout}
+      />
+    );
+  }
+
+  const activeRole = currentUser?.role || role;
 
   return (
-    <main className="app-shell">
-      <section className="top-bar">
-        <div>
-          <p className="eyebrow">Golabob Web</p>
-          <h1>인증 API 콘솔</h1>
-        </div>
-        <label>
-          API Base URL
-          <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-        </label>
-      </section>
-
-      <section className="status-grid">
-        <article className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>서버 상태</h2>
-              <p>{health}</p>
-            </div>
-            <button type="button" onClick={checkHealth}>확인</button>
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>현재 로그인</h2>
-              <p>{currentUser ? `${currentUser.email} / ${currentUser.role}` : "로그인 전"}</p>
-            </div>
-            <button className="secondary" type="button" onClick={logout}>로그아웃</button>
-          </div>
-        </article>
-      </section>
-
-      <section className="workspace-grid">
-        <article className="panel">
-          <h2>회원가입</h2>
-          <form className="form-stack" onSubmit={signup}>
-            <input value={signupEmail} onChange={(event) => setSignupEmail(event.target.value)} />
-            <input value={signupPassword} type="password" onChange={(event) => setSignupPassword(event.target.value)} />
-            <select value={signupRole} onChange={(event) => setSignupRole(event.target.value)}>
-              <option value="guest">guest</option>
-              <option value="owner">owner</option>
-            </select>
-            <button type="submit">회원가입</button>
-          </form>
-        </article>
-
-        <article className="panel">
-          <h2>로그인</h2>
-          <form className="form-stack" onSubmit={login}>
-            <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} />
-            <input value={loginPassword} type="password" onChange={(event) => setLoginPassword(event.target.value)} />
-            <button type="submit">로그인</button>
-          </form>
-          <button className="secondary full-width" type="button" onClick={fetchMe}>내 정보 다시 조회</button>
-        </article>
-
-        <article className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>요청 결과</h2>
-              <p>최근 API 응답과 오류를 표시합니다.</p>
-            </div>
-            <button className="secondary" type="button" onClick={() => setLog("대기 중")}>비우기</button>
-          </div>
-          <pre className="activity-log">{log}</pre>
-        </article>
-      </section>
-    </main>
+    <div className="app-frame">
+      <AppHeader role={activeRole} onAuth={() => setScreen("auth")} onLogout={logout} />
+      <main className="page-shell">
+        {screen === "userHome" ? <UserHome onNavigate={setScreen} /> : null}
+        {screen === "createRequest" ? <CreateRequest onNavigate={setScreen} /> : null}
+        {screen === "requestWaiting" ? <RequestWaiting onNavigate={setScreen} /> : null}
+        {screen === "offers" ? <OfferComparison onNavigate={setScreen} /> : null}
+        {screen === "confirmation" ? <ReservationConfirmation onNavigate={setScreen} /> : null}
+        {screen === "ownerHome" ? <OwnerHome onNavigate={setScreen} /> : null}
+        {screen === "ownerRequestDetail" ? <OwnerRequestDetail onNavigate={setScreen} /> : null}
+        {screen === "createOffer" ? <CreateOffer onNavigate={setScreen} /> : null}
+        {screen === "myPage" ? <MyPage userLabel={userLabel} onNavigate={setScreen} /> : null}
+      </main>
+      <BottomNav active={screen} role={activeRole} onNavigate={setScreen} />
+    </div>
   );
 }
 
