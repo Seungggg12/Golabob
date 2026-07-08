@@ -38,6 +38,30 @@ export class DbService implements OnModuleDestroy {
     `);
 
     await this.query(`
+      CREATE TABLE IF NOT EXISTS restaurants (
+        id UUID PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT,
+        max_capacity INTEGER NOT NULL CHECK (max_capacity > 0),
+        has_room BOOLEAN NOT NULL DEFAULT FALSE,
+        has_parking BOOLEAN NOT NULL DEFAULT FALSE,
+        open_time TIME NOT NULL,
+        close_time TIME NOT NULL,
+        status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await this.query(`
+      CREATE INDEX IF NOT EXISTS idx_restaurants_owner_id
+      ON restaurants(owner_id)
+    `);
+
+    await this.query(`
       CREATE TABLE IF NOT EXISTS dining_requests (
         id UUID PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -70,7 +94,7 @@ export class DbService implements OnModuleDestroy {
       CREATE TABLE IF NOT EXISTS offers (
         id UUID PRIMARY KEY,
         dining_request_id UUID NOT NULL REFERENCES dining_requests(id) ON DELETE CASCADE,
-        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,,
+        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
         price_per_person INTEGER NOT NULL CHECK (price_per_person > 0),
         menu_description TEXT NOT NULL,
         service_description TEXT,
@@ -95,55 +119,6 @@ export class DbService implements OnModuleDestroy {
       ON offers(restaurant_id)
     `);
 
-        await this.query(`
-      CREATE TABLE IF NOT EXISTS restaurants (
-        id UUID PRIMARY KEY,
-        owner_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        category TEXT NOT NULL,
-        description TEXT,
-        max_capacity INTEGER NOT NULL CHECK (max_capacity > 0),
-        has_room BOOLEAN NOT NULL DEFAULT FALSE,
-        has_parking BOOLEAN NOT NULL DEFAULT FALSE,
-        open_time TIME NOT NULL,
-        close_time TIME NOT NULL,
-        status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-
-    await this.query(`
-      CREATE INDEX IF NOT EXISTS idx_restaurants_owner_id
-      ON restaurants(owner_id)
-    `);
-    //hb
-    await this.query(`
-    CREATE TABLE IF NOT EXISTS restaurants (
-      id UUID PRIMARY KEY,
-      owner_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      address TEXT NOT NULL,
-      category TEXT NOT NULL,
-      description TEXT,
-      max_capacity INTEGER NOT NULL CHECK (max_capacity > 0),
-      has_room BOOLEAN NOT NULL DEFAULT FALSE,
-      has_parking BOOLEAN NOT NULL DEFAULT FALSE,
-      open_time TIME NOT NULL,
-      close_time TIME NOT NULL,
-      status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-
-    await this.query(`
-      CREATE INDEX IF NOT EXISTS idx_restaurants_owner_id
-      ON restaurants(owner_id)
-    `);
-
-    //reservations
     await this.query(`
       CREATE TABLE IF NOT EXISTS reservations (
         id UUID PRIMARY KEY,
@@ -168,56 +143,8 @@ export class DbService implements OnModuleDestroy {
       CREATE INDEX IF NOT EXISTS idx_reservations_restaurant_id
       ON reservations(restaurant_id)
     `);
-        await this.query(`
-      CREATE TABLE IF NOT EXISTS reservations (
-        id UUID PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-        reservation_date DATE NOT NULL,
-        reservation_time TIME NOT NULL,
-        head_count INTEGER NOT NULL CHECK (head_count > 0),
-        request_memo TEXT,
-        status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'completed', 'canceled')),
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
 
     await this.query(`
-      CREATE INDEX IF NOT EXISTS idx_reservations_user_id
-      ON reservations(user_id)
-    `);
-
-    await this.query(`
-      CREATE INDEX IF NOT EXISTS idx_reservations_restaurant_id
-      ON reservations(restaurant_id)
-    `);
-
-    //reviews
-    await this.query(`
-    CREATE TABLE IF NOT EXISTS reviews (
-        id UUID PRIMARY KEY,
-        reservation_id UUID NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
-        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-        user_id TEXT NOT NULL,
-    
-        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-        content TEXT NOT NULL,
-    
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-    )
-    `);
-    
-    await this.query(`
-    CREATE INDEX IF NOT EXISTS idx_reviews_restaurant
-    ON reviews(restaurant_id)
-    `);
-    
-    await this.query(`
-    CREATE INDEX IF NOT EXISTS idx_reviews_user
-    ON reviews(user_id)
-    `);    await this.query(`
       CREATE TABLE IF NOT EXISTS reviews (
         id UUID PRIMARY KEY,
         reservation_id UUID NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
