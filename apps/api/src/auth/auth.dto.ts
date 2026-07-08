@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
-export type PublicRole = "guest" | "owner";
+export type PublicRole = "user" | "owner";
 export type UserRole = PublicRole | "admin";
 
 export class SignupDto {
   @ApiProperty({
-    example: "guest@example.com",
+    example: "user@example.com",
     description: "로그인에 사용할 이메일",
   })
   email?: string;
@@ -17,8 +17,8 @@ export class SignupDto {
   password?: string;
 
   @ApiPropertyOptional({
-    enum: ["guest", "owner"],
-    default: "guest",
+    enum: ["user", "owner"],
+    default: "user",
     description: "가입 역할",
   })
   role?: PublicRole;
@@ -26,7 +26,7 @@ export class SignupDto {
 
 export class LoginDto {
   @ApiProperty({
-    example: "guest@example.com",
+    example: "user@example.com",
     description: "가입한 이메일",
   })
   email?: string;
@@ -42,10 +42,10 @@ export class PublicUserDto {
   @ApiProperty({ example: "7b3e9f6f-d630-42d8-a5c0-8d21fae3dd2e" })
   id!: string;
 
-  @ApiProperty({ example: "guest@example.com" })
+  @ApiProperty({ example: "user@example.com" })
   email!: string;
 
-  @ApiProperty({ enum: ["guest", "owner", "admin"], example: "guest" })
+  @ApiProperty({ enum: ["user", "owner", "admin"], example: "user" })
   role!: UserRole;
 }
 

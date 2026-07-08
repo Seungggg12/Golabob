@@ -26,7 +26,7 @@ interface User {
   createdAt: Date;
 }
 
-const PUBLIC_SIGNUP_ROLES = new Set(["guest", "owner"]);
+const PUBLIC_SIGNUP_ROLES = new Set(["user", "owner"]);
 
 @Injectable()
 export class AuthService {
@@ -35,7 +35,7 @@ export class AuthService {
   async signup(body: SignupDto) {
     const email = this.normalizeEmail(body.email);
     const password = body.password;
-    const role = body.role || "guest";
+    const role = body.role || "user";
 
     if (!email || !password) {
       throw new BadRequestException("이메일과 비밀번호를 입력해주세요.");
