@@ -1045,6 +1045,43 @@ dd {
   font-weight: 800;
 }
 
+.chip-section button.selected,
+.filter-row button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.form-message,
+.data-state {
+  border: 1px solid var(--outline);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--surface-low);
+  color: var(--muted);
+}
+
+.form-message,
+.data-state.error {
+  border-color: rgba(165, 59, 34, 0.3);
+  background: rgba(254, 125, 94, 0.1);
+  color: var(--secondary);
+}
+
+.empty-state {
+  display: grid;
+  gap: 12px;
+  border: 1px dashed var(--outline);
+  border-radius: 12px;
+  padding: 32px;
+  background: var(--surface);
+}
+
+.empty-state.compact {
+  margin-bottom: 18px;
+  padding: 22px;
+}
+
 .summary-banner {
   display: grid;
   gap: 10px;

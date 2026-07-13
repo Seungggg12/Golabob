@@ -73,7 +73,7 @@ function verifyAccessToken(accessToken: string): jwt.JwtPayload & { sub: string;
 }
 
 function toRequestUserRole(role: unknown): RequestUserRole {
-  if (role === "guest") {
+  if (role === "guest" || role === "user") {
     return "USER";
   }
 
