@@ -1,11 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 import { DbService } from "../shared/db.service";
 import { CreateDiningRequestDto } from "./dto/create-dining-request.dto";
 import { assertRole, RequestUser } from "./request-user";
 
 interface DiningRequestRow {
-  id: string;
+  id: number;
   user_id: string;
   title: string;
   dining_date: string;
@@ -31,13 +30,12 @@ export class DiningRequestsService {
 
     const result = await this.dbService.query<DiningRequestRow>(
       `INSERT INTO dining_requests (
-         id, user_id, title, dining_date, dining_time, head_count, region,
+         user_id, title, dining_date, dining_time, head_count, region,
          budget_per_person, preferred_menu, required_options, memo
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
-        randomUUID(),
         user.id,
         dto.title,
         dto.diningDate,

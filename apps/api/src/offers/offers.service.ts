@@ -1,12 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 import { DbService } from "../shared/db.service";
 import { CreateOfferDto } from "./dto/create-offer.dto";
 import { assertRole, RequestUser } from "./request-user";
 
 interface OfferRow {
-  id: string;
-  dining_request_id: string;
+  id: number;
+  dining_request_id: number;
   restaurant_id: string;
   price_per_person: number;
   menu_description: string;
@@ -28,7 +27,7 @@ export class OffersService {
     assertRole(user, ["OWNER"]);
     this.validateCreateDto(dto);
 
-    const requestResult = await this.dbService.query<{ id: string; status: string }>(
+    const requestResult = await this.dbService.query<{ id: number; status: string }>(
       "SELECT id, status FROM dining_requests WHERE id = $1",
       [diningRequestId],
     );
@@ -45,13 +44,12 @@ export class OffersService {
     try {
       const result = await this.dbService.query<OfferRow>(
         `INSERT INTO offers (
-           id, dining_request_id, restaurant_id, price_per_person, menu_description,
+           dining_request_id, restaurant_id, price_per_person, menu_description,
            service_description, seat_description, available_time, owner_comment, expires_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
         [
-          randomUUID(),
           diningRequestId,
           dto.restaurantId,
           dto.pricePerPerson,
@@ -102,7 +100,7 @@ export class OffersService {
   async findOffersForMyDiningRequest(user: RequestUser, diningRequestId: string) {
     assertRole(user, ["USER"]);
 
-    const requestResult = await this.dbService.query<{ id: string }>(
+    const requestResult = await this.dbService.query<{ id: number }>(
       "SELECT id FROM dining_requests WHERE id = $1 AND user_id = $2",
       [diningRequestId, user.id],
     );
