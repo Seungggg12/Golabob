@@ -19,6 +19,12 @@ interface OfferRow {
   updated_at: Date;
 }
 
+interface OfferRestaurantRow {
+  id: string;
+  name: string;
+  address: string;
+}
+
 @Injectable()
 export class OffersService {
   constructor(private readonly dbService: DbService) {}
@@ -26,6 +32,7 @@ export class OffersService {
   async create(user: RequestUser, diningRequestId: string, dto: CreateOfferDto) {
     assertRole(user, ["OWNER"]);
     this.validateCreateDto(dto);
+    await this.assertOwnedRestaurant(user.id, dto.restaurantId!);
 
     const requestResult = await this.dbService.query<{ id: number; status: string }>(
       "SELECT id, status FROM dining_requests WHERE id = $1",
@@ -85,6 +92,24 @@ export class OffersService {
     return result.rows.map((row) => this.toResponse(row));
   }
 
+  async findOwnerRestaurants(user: RequestUser) {
+    assertRole(user, ["OWNER"]);
+
+    const result = await this.dbService.query<OfferRestaurantRow>(
+      `SELECT id, name, address
+       FROM restaurants
+       WHERE owner_id = $1 AND status = 'approved'
+       ORDER BY name ASC`,
+      [user.id],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      address: row.address,
+    }));
+  }
+
   async findOwnerOfferById(user: RequestUser, id: string) {
     assertRole(user, ["OWNER"]);
 
@@ -132,6 +157,17 @@ export class OffersService {
 
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(dto.availableTime)) {
       throw new BadRequestException("예약 가능 시간은 HH:mm 형식이어야 합니다.");
+    }
+  }
+
+  private async assertOwnedRestaurant(ownerId: string, restaurantId: string) {
+    const result = await this.dbService.query<{ id: string }>(
+      "SELECT id FROM restaurants WHERE id = $1 AND owner_id = $2 AND status = 'approved'",
+      [restaurantId, ownerId],
+    );
+
+    if (!result.rows[0]) {
+      throw new ForbiddenException("본인 소유의 승인된 식당으로만 오퍼를 보낼 수 있습니다.");
     }
   }
 
