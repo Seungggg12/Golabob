@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { AuthUser } from "../auth/auth-user";
 import { DbService } from "../shared/db.service";
 import { CreateRestaurantDto } from "./dto/create-restaurant.dto";
 import { UpdateRestaurantDto } from "./dto/update-restaurant.dto";
@@ -21,17 +22,12 @@ interface RestaurantRow {
   updated_at: Date;
 }
 
-interface RequestUser {
-  id: string;
-  role: string;
-}
-
 @Injectable()
 export class RestaurantsService {
   constructor(private readonly dbService: DbService) {}
 
-  async create(user: RequestUser, dto: CreateRestaurantDto) {
-    if (user.role !== "OWNER") {
+  async create(user: AuthUser, dto: CreateRestaurantDto) {
+    if (user.role !== "owner") {
       throw new ForbiddenException("사장만 식당을 등록할 수 있습니다.");
     }
 
@@ -88,8 +84,8 @@ export class RestaurantsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async findMine(user: RequestUser) {
-    if (user.role !== "OWNER") {
+  async findMine(user: AuthUser) {
+    if (user.role !== "owner") {
       throw new ForbiddenException("사장만 내 식당을 조회할 수 있습니다.");
     }
 
@@ -104,8 +100,8 @@ export class RestaurantsService {
     return result.rows.map((row) => this.toResponse(row));
   }
 
-  async updateMine(user: RequestUser, id: string, dto: UpdateRestaurantDto) {
-    if (user.role !== "OWNER") {
+  async updateMine(user: AuthUser, id: string, dto: UpdateRestaurantDto) {
+    if (user.role !== "owner") {
       throw new ForbiddenException("사장만 식당을 수정할 수 있습니다.");
     }
 

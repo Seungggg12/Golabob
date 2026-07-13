@@ -14,7 +14,7 @@ const defaultApiBaseUrl = "http://localhost:3000";
 
 export default function App() {
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
-  const [email, setEmail] = useState("guest@example.com");
+  const [email, setEmail] = useState("user@example.com");
   const [password, setPassword] = useState("password1234");
   const [accessToken, setAccessToken] = useState("");
   const [currentUser, setCurrentUser] = useState("-");
@@ -58,7 +58,7 @@ export default function App() {
         "/api/auth/signup",
         {
           method: "POST",
-          body: JSON.stringify({ email, password, role: "guest" }),
+          body: JSON.stringify({ email, password, role: "user" }),
         },
       );
       setAccessToken(body.accessToken);

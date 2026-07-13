@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertRole, AuthUser } from "../auth/auth-user";
 import { DbService } from "../shared/db.service";
 import { CreateDiningRequestDto } from "./dto/create-dining-request.dto";
-import { assertRole, RequestUser } from "./request-user";
 
 interface DiningRequestRow {
   id: number;
@@ -24,8 +24,8 @@ interface DiningRequestRow {
 export class DiningRequestsService {
   constructor(private readonly dbService: DbService) {}
 
-  async create(user: RequestUser, dto: CreateDiningRequestDto) {
-    assertRole(user, ["USER"]);
+  async create(user: AuthUser, dto: CreateDiningRequestDto) {
+    assertRole(user, ["user"]);
     this.validateCreateDto(dto);
 
     const result = await this.dbService.query<DiningRequestRow>(
@@ -52,8 +52,8 @@ export class DiningRequestsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async findMine(user: RequestUser) {
-    assertRole(user, ["USER"]);
+  async findMine(user: AuthUser) {
+    assertRole(user, ["user"]);
 
     const result = await this.dbService.query<DiningRequestRow>(
       `SELECT * FROM dining_requests
@@ -65,8 +65,8 @@ export class DiningRequestsService {
     return result.rows.map((row) => this.toResponse(row));
   }
 
-  async findMineById(user: RequestUser, id: string) {
-    assertRole(user, ["USER"]);
+  async findMineById(user: AuthUser, id: string) {
+    assertRole(user, ["user"]);
 
     const result = await this.dbService.query<DiningRequestRow>(
       `SELECT * FROM dining_requests
@@ -81,7 +81,7 @@ export class DiningRequestsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async cancelMine(user: RequestUser, id: string) {
+  async cancelMine(user: AuthUser, id: string) {
     const request = await this.findMineById(user, id);
 
     if (request.status !== "open") {
@@ -99,8 +99,8 @@ export class DiningRequestsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async findOpenForOwner(user: RequestUser) {
-    assertRole(user, ["OWNER"]);
+  async findOpenForOwner(user: AuthUser) {
+    assertRole(user, ["owner"]);
 
     const result = await this.dbService.query<DiningRequestRow>(
       `SELECT * FROM dining_requests
@@ -111,8 +111,8 @@ export class DiningRequestsService {
     return result.rows.map((row) => this.toResponse(row));
   }
 
-  async findOpenByIdForOwner(user: RequestUser, id: string) {
-    assertRole(user, ["OWNER"]);
+  async findOpenByIdForOwner(user: AuthUser, id: string) {
+    assertRole(user, ["owner"]);
 
     const result = await this.dbService.query<DiningRequestRow>(
       `SELECT * FROM dining_requests

@@ -5,10 +5,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
-import * as jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { DbService } from "../shared/db.service";
-import { LoginDto, SignupDto, UserRole } from "./auth.dto";
+import { UserRole } from "./auth-user";
+import { LoginDto, SignupDto } from "./auth.dto";
+import { JwtTokenService } from "./jwt-token.service";
 
 interface UserRow {
   id: string;
@@ -30,7 +31,10 @@ const PUBLIC_SIGNUP_ROLES = new Set(["user", "owner"]);
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly jwtTokenService: JwtTokenService,
+  ) {}
 
   async signup(body: SignupDto) {
     const email = this.normalizeEmail(body.email);
@@ -56,7 +60,7 @@ export class AuthService {
 
       return {
         user: this.toPublicUser(user),
-        accessToken: this.createAccessToken(user),
+        accessToken: this.jwtTokenService.createAccessToken(user),
       };
     } catch (error) {
       if (this.isUniqueViolation(error)) {
@@ -89,13 +93,12 @@ export class AuthService {
 
     return {
       user: this.toPublicUser(user),
-      accessToken: this.createAccessToken(user),
+      accessToken: this.jwtTokenService.createAccessToken(user),
     };
   }
 
-  async me(accessToken: string) {
-    const payload = this.verifyToken(accessToken);
-    const user = await this.findUserById(payload.sub);
+  async me(userId: string) {
+    const user = await this.findUserById(userId);
 
     if (!user) {
       throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
@@ -155,45 +158,6 @@ export class AuthService {
       email: user.email,
       role: user.role,
     };
-  }
-
-  private createAccessToken(user: User) {
-    return jwt.sign(
-      {
-        role: user.role,
-      },
-      this.getJwtSecret(),
-      {
-        expiresIn: "1h",
-        subject: user.id,
-      },
-    );
-  }
-
-  private verifyToken(accessToken: string): jwt.JwtPayload & { sub: string } {
-    try {
-      const payload = jwt.verify(accessToken, this.getJwtSecret());
-
-      if (!payload || typeof payload === "string" || !payload.sub) {
-        throw new Error("Missing subject");
-      }
-
-      return payload as jwt.JwtPayload & { sub: string };
-    } catch (error) {
-      throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
-    }
-  }
-
-  private getJwtSecret() {
-    if (process.env.JWT_SECRET) {
-      return process.env.JWT_SECRET;
-    }
-
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("JWT_SECRET 환경 변수가 필요합니다.");
-    }
-
-    return "golabob-local-jwt-secret";
   }
 
   private isUniqueViolation(error: unknown) {

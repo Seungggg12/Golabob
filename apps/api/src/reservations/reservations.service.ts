@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { AuthUser } from "../auth/auth-user";
 import { DbService } from "../shared/db.service";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
 import { UpdateReservationDto } from "./dto/update-reservation.dto";
@@ -24,17 +25,12 @@ interface RestaurantRow {
   status: string;
 }
 
-interface RequestUser {
-  id: string;
-  role: string;
-}
-
 @Injectable()
 export class ReservationsService {
   constructor(private readonly dbService: DbService) {}
 
-  async create(user: RequestUser, dto: CreateReservationDto) {
-    if (user.role !== "USER") {
+  async create(user: AuthUser, dto: CreateReservationDto) {
+    if (user.role !== "user") {
       throw new ForbiddenException("일반 사용자만 예약할 수 있습니다.");
     }
 
@@ -82,8 +78,8 @@ export class ReservationsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async findMine(user: RequestUser) {
-    if (user.role !== "USER") {
+  async findMine(user: AuthUser) {
+    if (user.role !== "user") {
       throw new ForbiddenException("일반 사용자만 내 예약을 조회할 수 있습니다.");
     }
 
@@ -98,8 +94,8 @@ export class ReservationsService {
     return result.rows.map((row) => this.toResponse(row));
   }
 
-  async findMineById(user: RequestUser, id: string) {
-    if (user.role !== "USER") {
+  async findMineById(user: AuthUser, id: string) {
+    if (user.role !== "user") {
       throw new ForbiddenException("일반 사용자만 예약 상세를 조회할 수 있습니다.");
     }
 
@@ -117,7 +113,7 @@ export class ReservationsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async updateMine(user: RequestUser, id: string, dto: UpdateReservationDto) {
+  async updateMine(user: AuthUser, id: string, dto: UpdateReservationDto) {
     const current = await this.findMineRow(user, id);
 
     if (current.status !== "confirmed") {
@@ -170,7 +166,7 @@ export class ReservationsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async cancelMine(user: RequestUser, id: string) {
+  async cancelMine(user: AuthUser, id: string) {
     const current = await this.findMineRow(user, id);
 
     if (current.status !== "confirmed") {
@@ -188,8 +184,8 @@ export class ReservationsService {
     return this.toResponse(result.rows[0]);
   }
 
-  async findForOwner(user: RequestUser) {
-    if (user.role !== "OWNER") {
+  async findForOwner(user: AuthUser) {
+    if (user.role !== "owner") {
       throw new ForbiddenException("사장만 예약 목록을 조회할 수 있습니다.");
     }
 
@@ -205,8 +201,8 @@ export class ReservationsService {
     return result.rows.map((row) => this.toResponse(row));
   }
 
-  private async findMineRow(user: RequestUser, id: string) {
-    if (user.role !== "USER") {
+  private async findMineRow(user: AuthUser, id: string) {
+    if (user.role !== "user") {
       throw new ForbiddenException("일반 사용자만 예약을 관리할 수 있습니다.");
     }
 

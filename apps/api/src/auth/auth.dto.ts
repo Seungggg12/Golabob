@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { UserRole } from "./auth-user";
 
 export type PublicRole = "user" | "owner";
-export type UserRole = PublicRole | "admin";
 
 export class SignupDto {
   @ApiProperty({

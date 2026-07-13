@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertRole, AuthUser } from "../auth/auth-user";
 import { DbService } from "../shared/db.service";
 import { CreateOfferDto } from "./dto/create-offer.dto";
-import { assertRole, RequestUser } from "./request-user";
 
 interface OfferRow {
   id: number;
@@ -23,9 +23,10 @@ interface OfferRow {
 export class OffersService {
   constructor(private readonly dbService: DbService) {}
 
-  async create(user: RequestUser, diningRequestId: string, dto: CreateOfferDto) {
-    assertRole(user, ["OWNER"]);
+  async create(user: AuthUser, diningRequestId: string, dto: CreateOfferDto) {
+    assertRole(user, ["owner"]);
     this.validateCreateDto(dto);
+    await this.assertOwnRestaurant(user.id, dto.restaurantId!);
 
     const requestResult = await this.dbService.query<{ id: number; status: string }>(
       "SELECT id, status FROM dining_requests WHERE id = $1",
@@ -72,23 +73,40 @@ export class OffersService {
     }
   }
 
-  async findOwnerOffers(user: RequestUser, restaurantId?: string) {
-    assertRole(user, ["OWNER"]);
+  async findOwnerOffers(user: AuthUser, restaurantId?: string) {
+    assertRole(user, ["owner"]);
 
     const result = restaurantId
       ? await this.dbService.query<OfferRow>(
-          "SELECT * FROM offers WHERE restaurant_id = $1 ORDER BY created_at DESC",
-          [restaurantId],
+          `SELECT o.*
+           FROM offers o
+           JOIN restaurants r ON r.id = o.restaurant_id
+           WHERE o.restaurant_id = $1 AND r.owner_id = $2
+           ORDER BY o.created_at DESC`,
+          [restaurantId, user.id],
         )
-      : await this.dbService.query<OfferRow>("SELECT * FROM offers ORDER BY created_at DESC");
+      : await this.dbService.query<OfferRow>(
+          `SELECT o.*
+           FROM offers o
+           JOIN restaurants r ON r.id = o.restaurant_id
+           WHERE r.owner_id = $1
+           ORDER BY o.created_at DESC`,
+          [user.id],
+        );
 
     return result.rows.map((row) => this.toResponse(row));
   }
 
-  async findOwnerOfferById(user: RequestUser, id: string) {
-    assertRole(user, ["OWNER"]);
+  async findOwnerOfferById(user: AuthUser, id: string) {
+    assertRole(user, ["owner"]);
 
-    const result = await this.dbService.query<OfferRow>("SELECT * FROM offers WHERE id = $1", [id]);
+    const result = await this.dbService.query<OfferRow>(
+      `SELECT o.*
+       FROM offers o
+       JOIN restaurants r ON r.id = o.restaurant_id
+       WHERE o.id = $1 AND r.owner_id = $2`,
+      [id, user.id],
+    );
 
     if (!result.rows[0]) {
       throw new NotFoundException("오퍼를 찾을 수 없습니다.");
@@ -97,8 +115,8 @@ export class OffersService {
     return this.toResponse(result.rows[0]);
   }
 
-  async findOffersForMyDiningRequest(user: RequestUser, diningRequestId: string) {
-    assertRole(user, ["USER"]);
+  async findOffersForMyDiningRequest(user: AuthUser, diningRequestId: string) {
+    assertRole(user, ["user"]);
 
     const requestResult = await this.dbService.query<{ id: number }>(
       "SELECT id FROM dining_requests WHERE id = $1 AND user_id = $2",
@@ -132,6 +150,19 @@ export class OffersService {
 
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(dto.availableTime)) {
       throw new BadRequestException("예약 가능 시간은 HH:mm 형식이어야 합니다.");
+    }
+  }
+
+  private async assertOwnRestaurant(ownerId: string, restaurantId: string) {
+    const result = await this.dbService.query<{ id: string }>(
+      `SELECT id
+       FROM restaurants
+       WHERE id = $1 AND owner_id = $2`,
+      [restaurantId, ownerId],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException("오퍼를 보낼 내 식당을 찾을 수 없습니다.");
     }
   }
 
