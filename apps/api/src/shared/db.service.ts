@@ -63,7 +63,7 @@ export class DbService implements OnModuleDestroy {
 
     await this.query(`
       CREATE TABLE IF NOT EXISTS dining_requests (
-        id UUID PRIMARY KEY,
+        id BIGSERIAL PRIMARY KEY,
         user_id TEXT NOT NULL,
         title TEXT NOT NULL,
         dining_date DATE NOT NULL,
@@ -92,8 +92,8 @@ export class DbService implements OnModuleDestroy {
 
     await this.query(`
       CREATE TABLE IF NOT EXISTS offers (
-        id UUID PRIMARY KEY,
-        dining_request_id UUID NOT NULL REFERENCES dining_requests(id) ON DELETE CASCADE,
+        id BIGSERIAL PRIMARY KEY,
+        dining_request_id BIGINT NOT NULL REFERENCES dining_requests(id) ON DELETE CASCADE,
         restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
         price_per_person INTEGER NOT NULL CHECK (price_per_person > 0),
         menu_description TEXT NOT NULL,
