@@ -54,6 +54,8 @@ export interface Offer {
   expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
+  restaurantName?: string;
+  restaurantAddress?: string;
 }
 
 export interface CreateOfferInput {
@@ -70,6 +72,26 @@ export interface OfferRestaurant {
   id: string;
   name: string;
   address: string;
+}
+
+export interface Reservation {
+  id: string;
+  userId: string;
+  restaurantId: string;
+  diningRequestId: number;
+  offerId: number;
+  reservationDate: string;
+  reservationTime: string;
+  headCount: number;
+  requestMemo: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfferSelectionResponse {
+  reservation: Reservation;
+  offer: Offer;
 }
 
 export type AuthMode = "login" | "signup";

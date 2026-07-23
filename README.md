@@ -86,6 +86,12 @@ npm test
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
+- `POST /api/dining-requests`
+- `GET /api/dining-requests/me`
+- `GET /api/owner/dining-requests`
+- `POST /api/dining-requests/:requestId/offers`
+- `GET /api/dining-requests/:requestId/offers`
+- `POST /api/dining-requests/:requestId/offers/:offerId/select`
 
 ## Swagger 문서
 

@@ -13,7 +13,7 @@ import { RequestWaiting } from "./screens/RequestWaiting";
 import { RoleSelection } from "./screens/RoleSelection";
 import { SplashOnboarding } from "./screens/SplashOnboarding";
 import { UserHome } from "./screens/UserHome";
-import { AppScreen, AuthMode, AuthResponse, CreateDiningRequestInput, CreateOfferInput, DiningRequest, Offer, OfferRestaurant, PublicUser, UserRole } from "./types";
+import { AppScreen, AuthMode, AuthResponse, CreateDiningRequestInput, CreateOfferInput, DiningRequest, Offer, OfferRestaurant, OfferSelectionResponse, PublicUser, Reservation, UserRole } from "./types";
 
 const defaultApiBaseUrl = "http://localhost:3000";
 
@@ -35,6 +35,8 @@ function App() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [offerRestaurants, setOfferRestaurants] = useState<OfferRestaurant[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<DiningRequest | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [confirmedReservation, setConfirmedReservation] = useState<Reservation | null>(null);
 
   const title = authMode === "login" ? "다시 만나서 반가워요" : "골라밥 시작하기";
   const submitText = authMode === "login" ? "로그인" : "회원가입";
@@ -128,7 +130,26 @@ function App() {
     finally { setIsLoading(false); }
   };
 
-  const logout = () => { localStorage.removeItem("golabobAccessToken"); setAccessToken(""); setCurrentUser(null); setMyRequests([]); setOwnerRequests([]); setOwnerOffers([]); setOffers([]); setOfferRestaurants([]); setSelectedRequest(null); setScreen("splash"); };
+  const selectOffer = async (offer: Offer) => {
+    if (!selectedRequest) return;
+    setIsLoading(true); setDataMessage("");
+    try {
+      const result = await requestJson<OfferSelectionResponse>(
+        `/api/dining-requests/${selectedRequest.id}/offers/${offer.id}/select`,
+        { method: "POST" },
+      );
+      setSelectedOffer(result.offer);
+      setConfirmedReservation(result.reservation);
+      setSelectedRequest({ ...selectedRequest, status: "reserved" });
+      setScreen("confirmation");
+    } catch (error) {
+      setDataMessage(error instanceof Error ? error.message : "오퍼 선택에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => { localStorage.removeItem("golabobAccessToken"); setAccessToken(""); setCurrentUser(null); setMyRequests([]); setOwnerRequests([]); setOwnerOffers([]); setOffers([]); setOfferRestaurants([]); setSelectedRequest(null); setSelectedOffer(null); setConfirmedReservation(null); setScreen("splash"); };
 
   if (screen === "splash") return <SplashOnboarding onStart={() => { setAuthMode("login"); setScreen("auth"); }} />;
   if (screen === "roleSelection") return <RoleSelection role={role} setRole={setRole} onContinue={() => setScreen((currentUser?.role || role) === "owner" ? "ownerHome" : "userHome")} />;
@@ -139,8 +160,8 @@ function App() {
     {screen === "userHome" ? <UserHome requests={myRequests} isLoading={isLoading} message={dataMessage} onNavigate={setScreen} onSelect={(request) => { setSelectedRequest(request); setScreen("requestWaiting"); }} /> : null}
     {screen === "createRequest" ? <CreateRequest isLoading={isLoading} message={dataMessage} onSubmit={createDiningRequest} /> : null}
     {screen === "requestWaiting" ? <RequestWaiting request={selectedRequest} offers={offers} isLoading={isLoading} message={dataMessage} onNavigate={setScreen} onRefresh={() => void loadOffers()} /> : null}
-    {screen === "offers" ? <OfferComparison request={selectedRequest} offers={offers} message={dataMessage} onNavigate={setScreen} /> : null}
-    {screen === "confirmation" ? <ReservationConfirmation onNavigate={setScreen} /> : null}
+    {screen === "offers" ? <OfferComparison request={selectedRequest} offers={offers} isLoading={isLoading} message={dataMessage} onNavigate={setScreen} onSelect={selectOffer} /> : null}
+    {screen === "confirmation" ? <ReservationConfirmation request={selectedRequest} offer={selectedOffer} reservation={confirmedReservation} onNavigate={setScreen} /> : null}
     {screen === "ownerHome" ? <OwnerHome requests={ownerRequests} offerCount={ownerOffers.length} isLoading={isLoading} message={dataMessage} onSelect={(request) => { setSelectedRequest(request); setScreen("ownerRequestDetail"); }} /> : null}
     {screen === "ownerRequestDetail" ? <OwnerRequestDetail request={selectedRequest} onNavigate={setScreen} /> : null}
     {screen === "createOffer" ? <CreateOffer request={selectedRequest} restaurants={offerRestaurants} isLoading={isLoading} message={dataMessage} onNavigate={setScreen} onSubmit={createOffer} /> : null}

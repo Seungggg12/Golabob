@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { Pool, QueryResult, QueryResultRow } from "pg";
+import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 @Injectable()
 export class DbService implements OnModuleDestroy {
@@ -24,6 +24,22 @@ export class DbService implements OnModuleDestroy {
     params?: unknown[],
   ): Promise<QueryResult<T>> {
     return this.getPool().query<T>(text, params);
+  }
+
+  async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.getPool().connect();
+
+    try {
+      await client.query("BEGIN");
+      const result = await work(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async init() {
@@ -124,6 +140,8 @@ export class DbService implements OnModuleDestroy {
         id UUID PRIMARY KEY,
         user_id TEXT NOT NULL,
         restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        dining_request_id BIGINT REFERENCES dining_requests(id) ON DELETE SET NULL,
+        offer_id BIGINT REFERENCES offers(id) ON DELETE SET NULL,
         reservation_date DATE NOT NULL,
         reservation_time TIME NOT NULL,
         head_count INTEGER NOT NULL CHECK (head_count > 0),
@@ -132,6 +150,28 @@ export class DbService implements OnModuleDestroy {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `);
+
+    await this.query(`
+      ALTER TABLE reservations
+      ADD COLUMN IF NOT EXISTS dining_request_id BIGINT REFERENCES dining_requests(id) ON DELETE SET NULL
+    `);
+
+    await this.query(`
+      ALTER TABLE reservations
+      ADD COLUMN IF NOT EXISTS offer_id BIGINT REFERENCES offers(id) ON DELETE SET NULL
+    `);
+
+    await this.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_reservations_dining_request_id
+      ON reservations(dining_request_id)
+      WHERE dining_request_id IS NOT NULL
+    `);
+
+    await this.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_reservations_offer_id
+      ON reservations(offer_id)
+      WHERE offer_id IS NOT NULL
     `);
 
     await this.query(`
