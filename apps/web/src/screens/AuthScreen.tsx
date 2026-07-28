@@ -9,11 +9,13 @@ export function AuthScreen({
   isLoading,
   message,
   password,
+  rememberLogin,
   role,
   setApiBaseUrl,
   setAuthMode,
   setEmail,
   setPassword,
+  setRememberLogin,
   setRole,
   submitAuth,
   submitText,
@@ -115,10 +117,13 @@ export function AuthScreen({
 
           <div className="form-extra">
             <label className="check-label">
-              <input type="checkbox" />
+              <input
+                type="checkbox"
+                checked={rememberLogin}
+                onChange={(event) => setRememberLogin(event.target.checked)}
+              />
               로그인 유지
             </label>
-            <button type="button">비밀번호 찾기</button>
           </div>
 
           <button className="primary-action" type="submit" disabled={isLoading}>

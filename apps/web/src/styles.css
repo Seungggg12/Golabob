@@ -335,6 +335,10 @@ dd {
   display: grid;
   justify-items: center;
   gap: 16px;
+  width: 100%;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
   min-height: 430px;
   border: 2px solid var(--outline);
   border-radius: 12px;
@@ -352,6 +356,19 @@ dd {
   border-color: var(--primary);
   background: var(--surface-low);
   transform: translateY(-4px);
+}
+
+.role-card.locked,
+.role-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.session-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--background);
 }
 
 .selected-check {

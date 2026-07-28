@@ -47,6 +47,13 @@ export class PublicUserDto {
 
   @ApiProperty({ enum: ["user", "owner", "admin"], example: "user" })
   role!: UserRole;
+
+  @ApiProperty({
+    enum: ["user", "owner", "admin"],
+    isArray: true,
+    example: ["user", "owner"],
+  })
+  roles!: UserRole[];
 }
 
 export class AuthResponseDto {

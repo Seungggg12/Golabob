@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { AuthUser } from "../auth/auth-user";
+import { AuthUser, hasRole } from "../auth/auth-user";
 import { DbService } from "../shared/db.service";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
 import { UpdateReservationDto } from "./dto/update-reservation.dto";
@@ -30,7 +30,7 @@ export class ReservationsService {
   constructor(private readonly dbService: DbService) {}
 
   async create(user: AuthUser, dto: CreateReservationDto) {
-    if (user.role !== "user") {
+    if (!hasRole(user, "user")) {
       throw new ForbiddenException("일반 사용자만 예약할 수 있습니다.");
     }
 
@@ -79,7 +79,7 @@ export class ReservationsService {
   }
 
   async findMine(user: AuthUser) {
-    if (user.role !== "user") {
+    if (!hasRole(user, "user")) {
       throw new ForbiddenException("일반 사용자만 내 예약을 조회할 수 있습니다.");
     }
 
@@ -95,7 +95,7 @@ export class ReservationsService {
   }
 
   async findMineById(user: AuthUser, id: string) {
-    if (user.role !== "user") {
+    if (!hasRole(user, "user")) {
       throw new ForbiddenException("일반 사용자만 예약 상세를 조회할 수 있습니다.");
     }
 
@@ -185,7 +185,7 @@ export class ReservationsService {
   }
 
   async findForOwner(user: AuthUser) {
-    if (user.role !== "owner") {
+    if (!hasRole(user, "owner")) {
       throw new ForbiddenException("사장만 예약 목록을 조회할 수 있습니다.");
     }
 
@@ -202,7 +202,7 @@ export class ReservationsService {
   }
 
   private async findMineRow(user: AuthUser, id: string) {
-    if (user.role !== "user") {
+    if (!hasRole(user, "user")) {
       throw new ForbiddenException("일반 사용자만 예약을 관리할 수 있습니다.");
     }
 

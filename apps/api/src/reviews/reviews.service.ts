@@ -5,7 +5,7 @@ import {
     NotFoundException,
   } from "@nestjs/common";
   import { randomUUID } from "node:crypto";
-  import { AuthUser } from "../auth/auth-user";
+  import { AuthUser, hasRole } from "../auth/auth-user";
   import { DbService } from "../shared/db.service";
   import { CreateReviewDto } from "./dto/create-review.dto";
   import { UpdateReviewDto } from "./dto/update-review.dto";
@@ -33,7 +33,7 @@ import {
     constructor(private readonly dbService: DbService) {}
   
     async create(user: AuthUser, dto: CreateReviewDto) {
-      if (user.role !== "user") {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 리뷰를 작성할 수 있습니다.");
       }
   
@@ -84,7 +84,7 @@ import {
     }
   
     async findMine(user: AuthUser) {
-      if (user.role !== "user") {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 내 리뷰를 조회할 수 있습니다.");
       }
   
@@ -112,7 +112,7 @@ import {
     }
   
     async updateMine(user: AuthUser, id: string, dto: UpdateReviewDto) {
-      if (user.role !== "user") {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 리뷰를 수정할 수 있습니다.");
       }
   
@@ -146,7 +146,7 @@ import {
     }
   
     async removeMine(user: AuthUser, id: string) {
-      if (user.role !== "user") {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 리뷰를 삭제할 수 있습니다.");
       }
   

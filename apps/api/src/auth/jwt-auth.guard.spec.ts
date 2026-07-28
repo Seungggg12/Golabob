@@ -15,13 +15,21 @@ describe("JwtAuthGuard", () => {
   it("Bearer 토큰을 검증하고 현재 사용자를 요청에 저장한다", () => {
     const tokenService = new JwtTokenService();
     const guard = new JwtAuthGuard(tokenService);
-    const token = tokenService.createAccessToken({ id: "owner-id", role: "owner" });
+    const token = tokenService.createAccessToken({
+      id: "owner-id",
+      role: "owner",
+      roles: ["user", "owner"],
+    });
     const request: RequestWithUser = {
       headers: { authorization: `Bearer ${token}` },
     };
 
     assert.equal(guard.canActivate(createContext(request)), true);
-    assert.deepEqual(request.user, { id: "owner-id", role: "owner" });
+    assert.deepEqual(request.user, {
+      id: "owner-id",
+      role: "owner",
+      roles: ["user", "owner"],
+    });
   });
 
   it("Authorization 헤더가 없으면 요청을 거부한다", () => {

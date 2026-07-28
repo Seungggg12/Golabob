@@ -26,7 +26,7 @@ describe("RolesGuard", () => {
     const guard = createGuard(["owner"]);
     const request: RequestWithUser = {
       headers: {},
-      user: { id: "owner-id", role: "owner" },
+      user: { id: "owner-id", role: "user", roles: ["user", "owner"] },
     };
 
     assert.equal(guard.canActivate(createContext(request)), true);
@@ -36,7 +36,7 @@ describe("RolesGuard", () => {
     const guard = createGuard(["owner"]);
     const request: RequestWithUser = {
       headers: {},
-      user: { id: "user-id", role: "user" },
+      user: { id: "user-id", role: "user", roles: ["user"] },
     };
 
     assert.throws(

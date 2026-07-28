@@ -1,12 +1,12 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import * as jwt from "jsonwebtoken";
-import { AuthUser, isUserRole } from "./auth-user";
+import { AuthUser, isUserRole, isUserRoles } from "./auth-user";
 
 @Injectable()
 export class JwtTokenService {
   createAccessToken(user: AuthUser) {
     return jwt.sign(
-      { role: user.role },
+      { role: user.role, roles: user.roles },
       this.getJwtSecret(),
       {
         expiresIn: "1h",
@@ -28,9 +28,16 @@ export class JwtTokenService {
         throw new Error("Invalid token payload");
       }
 
+      const roles = isUserRoles(payload.roles) ? payload.roles : [payload.role];
+
+      if (!roles.includes(payload.role)) {
+        throw new Error("Invalid token roles");
+      }
+
       return {
         id: payload.sub,
         role: payload.role,
+        roles,
       };
     } catch {
       throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");

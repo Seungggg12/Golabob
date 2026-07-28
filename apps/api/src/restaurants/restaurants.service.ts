@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { AuthUser } from "../auth/auth-user";
+import { AuthUser, hasRole } from "../auth/auth-user";
 import { DbService } from "../shared/db.service";
 import { CreateRestaurantDto } from "./dto/create-restaurant.dto";
 import { UpdateRestaurantDto } from "./dto/update-restaurant.dto";
@@ -27,7 +27,7 @@ export class RestaurantsService {
   constructor(private readonly dbService: DbService) {}
 
   async create(user: AuthUser, dto: CreateRestaurantDto) {
-    if (user.role !== "owner") {
+    if (!hasRole(user, "owner")) {
       throw new ForbiddenException("사장만 식당을 등록할 수 있습니다.");
     }
 
@@ -85,7 +85,7 @@ export class RestaurantsService {
   }
 
   async findMine(user: AuthUser) {
-    if (user.role !== "owner") {
+    if (!hasRole(user, "owner")) {
       throw new ForbiddenException("사장만 내 식당을 조회할 수 있습니다.");
     }
 
@@ -101,7 +101,7 @@ export class RestaurantsService {
   }
 
   async updateMine(user: AuthUser, id: string, dto: UpdateRestaurantDto) {
-    if (user.role !== "owner") {
+    if (!hasRole(user, "owner")) {
       throw new ForbiddenException("사장만 식당을 수정할 수 있습니다.");
     }
 

@@ -16,6 +16,7 @@ interface UserRow {
   email: string;
   password_hash: string;
   role: UserRole;
+  roles: UserRole[];
   created_at: Date;
 }
 
@@ -24,6 +25,7 @@ interface User {
   email: string;
   passwordHash: string;
   role: UserRole;
+  roles: UserRole[];
   createdAt: Date;
 }
 
@@ -115,7 +117,8 @@ export class AuthService {
 
   private async findUserByEmail(email: string) {
     const result = await this.dbService.query<UserRow>(
-      "SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1",
+      `${this.userSelectSql()}
+       WHERE u.email = $1`,
       [email],
     );
 
@@ -124,7 +127,8 @@ export class AuthService {
 
   private async findUserById(id: string) {
     const result = await this.dbService.query<UserRow>(
-      "SELECT id, email, password_hash, role, created_at FROM users WHERE id = $1",
+      `${this.userSelectSql()}
+       WHERE u.id = $1`,
       [id],
     );
 
@@ -132,11 +136,21 @@ export class AuthService {
   }
 
   private async createUser(email: string, passwordHash: string, role: UserRole) {
+    const roles: UserRole[] = role === "owner" ? ["user", "owner"] : [role];
     const result = await this.dbService.query<UserRow>(
-      `INSERT INTO users (id, email, password_hash, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, password_hash, role, created_at`,
-      [randomUUID(), email, passwordHash, role],
+      `WITH new_user AS (
+         INSERT INTO users (id, email, password_hash, role)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, email, password_hash, role, created_at
+       ), new_roles AS (
+         INSERT INTO user_roles (user_id, role)
+         SELECT new_user.id, requested_role
+         FROM new_user
+         CROSS JOIN UNNEST($5::text[]) AS requested_role
+       )
+       SELECT new_user.*, $5::text[] AS roles
+       FROM new_user`,
+      [randomUUID(), email, passwordHash, role, roles],
     );
 
     return this.mapUser(result.rows[0]);
@@ -148,6 +162,7 @@ export class AuthService {
       email: row.email,
       passwordHash: row.password_hash,
       role: row.role,
+      roles: row.roles,
       createdAt: row.created_at,
     };
   }
@@ -157,7 +172,28 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      roles: user.roles,
     };
+  }
+
+  private userSelectSql() {
+    return `SELECT
+              u.id,
+              u.email,
+              u.password_hash,
+              u.role,
+              u.created_at,
+              COALESCE(
+                (
+                  SELECT ARRAY_AGG(ur.role ORDER BY
+                    CASE ur.role WHEN 'user' THEN 1 WHEN 'owner' THEN 2 ELSE 3 END
+                  )
+                  FROM user_roles ur
+                  WHERE ur.user_id = u.id
+                ),
+                ARRAY[u.role]
+              ) AS roles
+            FROM users u`;
   }
 
   private isUniqueViolation(error: unknown) {

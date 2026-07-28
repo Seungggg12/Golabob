@@ -30,7 +30,7 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException("인증이 필요합니다.");
     }
 
-    if (!requiredRoles.includes(request.user.role)) {
+    if (!requiredRoles.some((role) => request.user?.roles.includes(role))) {
       throw new ForbiddenException("이 API를 사용할 권한이 없습니다.");
     }
 
