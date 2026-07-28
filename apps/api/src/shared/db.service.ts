@@ -82,6 +82,8 @@ export class DbService implements OnModuleDestroy {
         owner_id TEXT NOT NULL,
         name TEXT NOT NULL,
         address TEXT NOT NULL,
+        phone TEXT,
+        image_url TEXT,
         category TEXT NOT NULL,
         description TEXT,
         max_capacity INTEGER NOT NULL CHECK (max_capacity > 0),
@@ -93,6 +95,16 @@ export class DbService implements OnModuleDestroy {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `);
+
+    await this.query(`
+      ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS phone TEXT
+    `);
+
+    await this.query(`
+      ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS image_url TEXT
     `);
 
     await this.query(`
@@ -169,10 +181,43 @@ export class DbService implements OnModuleDestroy {
         reservation_time TIME NOT NULL,
         head_count INTEGER NOT NULL CHECK (head_count > 0),
         request_memo TEXT,
-        status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'completed', 'canceled')),
+        status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('pending', 'confirmed', 'rejected', 'completed', 'canceled')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `);
+
+    await this.query(`
+      DO $$
+      BEGIN
+        PERFORM pg_advisory_xact_lock(hashtext('golabob_reservations_status_constraint'));
+
+        IF EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'reservations_status_check'
+            AND conrelid = 'reservations'::regclass
+            AND (
+              pg_get_constraintdef(oid) NOT LIKE '%pending%'
+              OR pg_get_constraintdef(oid) NOT LIKE '%rejected%'
+            )
+        ) THEN
+          ALTER TABLE reservations
+          DROP CONSTRAINT reservations_status_check;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'reservations_status_check'
+            AND conrelid = 'reservations'::regclass
+        ) THEN
+          ALTER TABLE reservations
+          ADD CONSTRAINT reservations_status_check
+          CHECK (status IN ('pending', 'confirmed', 'rejected', 'completed', 'canceled'));
+        END IF;
+      END
+      $$
     `);
 
     await this.query(`

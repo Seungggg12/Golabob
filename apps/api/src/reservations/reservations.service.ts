@@ -9,6 +9,7 @@ interface ReservationRow {
   id: string;
   user_id: string;
   restaurant_id: string;
+  restaurant_name?: string;
   reservation_date: string;
   reservation_time: string;
   head_count: number;
@@ -60,9 +61,9 @@ export class ReservationsService {
     const result = await this.dbService.query<ReservationRow>(
       `INSERT INTO reservations (
          id, user_id, restaurant_id, reservation_date, reservation_time,
-         head_count, request_memo
+         head_count, request_memo, status
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
        RETURNING *`,
       [
         randomUUID(),
@@ -84,10 +85,11 @@ export class ReservationsService {
     }
 
     const result = await this.dbService.query<ReservationRow>(
-      `SELECT *
-       FROM reservations
-       WHERE user_id = $1
-       ORDER BY reservation_date DESC, reservation_time DESC, created_at DESC`,
+      `SELECT r.*, rt.name AS restaurant_name
+       FROM reservations r
+       JOIN restaurants rt ON rt.id = r.restaurant_id
+       WHERE r.user_id = $1
+       ORDER BY r.reservation_date DESC, r.reservation_time DESC, r.created_at DESC`,
       [user.id],
     );
 
@@ -100,9 +102,10 @@ export class ReservationsService {
     }
 
     const result = await this.dbService.query<ReservationRow>(
-      `SELECT *
-       FROM reservations
-       WHERE id = $1 AND user_id = $2`,
+      `SELECT r.*, rt.name AS restaurant_name
+       FROM reservations r
+       JOIN restaurants rt ON rt.id = r.restaurant_id
+       WHERE r.id = $1 AND r.user_id = $2`,
       [id, user.id],
     );
 
@@ -143,7 +146,7 @@ export class ReservationsService {
       throw new BadRequestException("예약 시간은 HH:mm 형식이어야 합니다.");
     }
 
-    const result = await this.dbService.query<ReservationRow>(
+    await this.dbService.query<ReservationRow>(
       `UPDATE reservations
        SET
          reservation_date = $1,
@@ -163,7 +166,7 @@ export class ReservationsService {
       ],
     );
 
-    return this.toResponse(result.rows[0]);
+    return this.findMineById(user, id);
   }
 
   async cancelMine(user: AuthUser, id: string) {
@@ -173,7 +176,7 @@ export class ReservationsService {
       throw new ForbiddenException("확정 상태의 예약만 취소할 수 있습니다.");
     }
 
-    const result = await this.dbService.query<ReservationRow>(
+    await this.dbService.query<ReservationRow>(
       `UPDATE reservations
        SET status = 'canceled', updated_at = NOW()
        WHERE id = $1 AND user_id = $2
@@ -181,7 +184,7 @@ export class ReservationsService {
       [id, user.id],
     );
 
-    return this.toResponse(result.rows[0]);
+    return this.findMineById(user, id);
   }
 
   async findForOwner(user: AuthUser) {
@@ -190,7 +193,7 @@ export class ReservationsService {
     }
 
     const result = await this.dbService.query<ReservationRow>(
-      `SELECT r.*
+      `SELECT r.*, rt.name AS restaurant_name
        FROM reservations r
        JOIN restaurants rt ON rt.id = r.restaurant_id
        WHERE rt.owner_id = $1
@@ -199,6 +202,62 @@ export class ReservationsService {
     );
 
     return result.rows.map((row) => this.toResponse(row));
+  }
+
+  async confirmForOwner(user: AuthUser, id: string) {
+    const current = await this.findOwnerReservationRow(user, id);
+
+    if (current.status !== "pending") {
+      throw new BadRequestException("대기 상태의 예약만 확정할 수 있습니다.");
+    }
+
+    const result = await this.dbService.query<ReservationRow>(
+      `UPDATE reservations
+       SET status = 'confirmed', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id],
+    );
+
+    return this.toResponse(result.rows[0]);
+  }
+
+  async rejectForOwner(user: AuthUser, id: string) {
+    const current = await this.findOwnerReservationRow(user, id);
+
+    if (current.status !== "pending") {
+      throw new BadRequestException("대기 상태의 예약만 거절할 수 있습니다.");
+    }
+
+    const result = await this.dbService.query<ReservationRow>(
+      `UPDATE reservations
+       SET status = 'rejected', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id],
+    );
+
+    return this.toResponse(result.rows[0]);
+  }
+
+  private async findOwnerReservationRow(user: AuthUser, id: string) {
+    if (!hasRole(user, "owner")) {
+      throw new ForbiddenException("사장만 예약을 관리할 수 있습니다.");
+    }
+
+    const result = await this.dbService.query<ReservationRow>(
+      `SELECT r.*
+       FROM reservations r
+       JOIN restaurants rt ON rt.id = r.restaurant_id
+       WHERE r.id = $1 AND rt.owner_id = $2`,
+      [id, user.id],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException("예약을 찾을 수 없습니다.");
+    }
+
+    return result.rows[0];
   }
 
   private async findMineRow(user: AuthUser, id: string) {
@@ -239,6 +298,7 @@ export class ReservationsService {
       id: row.id,
       userId: row.user_id,
       restaurantId: row.restaurant_id,
+      restaurantName: row.restaurant_name ?? null,
       reservationDate: row.reservation_date,
       reservationTime: row.reservation_time,
       headCount: row.head_count,

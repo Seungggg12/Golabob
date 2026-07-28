@@ -10,6 +10,8 @@ interface RestaurantRow {
   owner_id: string;
   name: string;
   address: string;
+  phone: string | null;
+  image_url: string | null;
   category: string;
   description: string | null;
   max_capacity: number;
@@ -35,16 +37,18 @@ export class RestaurantsService {
 
     const result = await this.dbService.query<RestaurantRow>(
       `INSERT INTO restaurants (
-         id, owner_id, name, address, category, description,
+         id, owner_id, name, address, phone, image_url, category, description,
          max_capacity, has_room, has_parking, open_time, close_time
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         randomUUID(),
         user.id,
         dto.name,
         dto.address,
+        dto.phone,
+        dto.imageUrl,
         dto.category,
         dto.description || null,
         dto.maxCapacity,
@@ -121,19 +125,23 @@ export class RestaurantsService {
        SET
          name = $1,
          address = $2,
-         category = $3,
-         description = $4,
-         max_capacity = $5,
-         has_room = $6,
-         has_parking = $7,
-         open_time = $8,
-         close_time = $9,
+         phone = $3,
+         image_url = $4,
+         category = $5,
+         description = $6,
+         max_capacity = $7,
+         has_room = $8,
+         has_parking = $9,
+         open_time = $10,
+         close_time = $11,
          updated_at = NOW()
-       WHERE id = $10
+       WHERE id = $12
        RETURNING *`,
       [
         dto.name ?? restaurant.name,
         dto.address ?? restaurant.address,
+        dto.phone ?? restaurant.phone,
+        dto.imageUrl ?? restaurant.image_url,
         dto.category ?? restaurant.category,
         dto.description ?? restaurant.description,
         dto.maxCapacity ?? restaurant.max_capacity,
@@ -146,6 +154,39 @@ export class RestaurantsService {
     );
 
     return this.toResponse(result.rows[0]);
+  }
+
+  async removeMine(user: AuthUser, id: string) {
+    if (!hasRole(user, "owner")) {
+      throw new ForbiddenException("사장만 식당을 삭제할 수 있습니다.");
+    }
+
+    await this.assertOwnRestaurant(user.id, id);
+
+    const reservationResult = await this.dbService.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM reservations
+       WHERE restaurant_id = $1
+         AND status IN ('pending', 'confirmed')`,
+      [id],
+    );
+
+    if (Number(reservationResult.rows[0]?.count ?? 0) > 0) {
+      throw new BadRequestException("진행 중인 예약이 있는 식당은 삭제할 수 없습니다.");
+    }
+
+    const result = await this.dbService.query<RestaurantRow>(
+      `DELETE FROM restaurants
+       WHERE id = $1 AND owner_id = $2
+       RETURNING *`,
+      [id, user.id],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException("삭제할 식당을 찾을 수 없습니다.");
+    }
+
+    return { message: "식당이 삭제되었습니다.", restaurantId: id };
   }
 
   private async assertOwnRestaurant(ownerId: string, restaurantId: string) {
@@ -162,8 +203,8 @@ export class RestaurantsService {
   }
 
   private validateCreateDto(dto: CreateRestaurantDto) {
-    if (!dto.name || !dto.address || !dto.category || !dto.openTime || !dto.closeTime) {
-      throw new BadRequestException("식당명, 주소, 카테고리, 영업시간은 필수입니다.");
+    if (!dto.name || !dto.address || !dto.phone || !dto.category || !dto.openTime || !dto.closeTime) {
+      throw new BadRequestException("식당명, 주소, 전화번호, 카테고리, 영업시간은 필수입니다.");
     }
 
     if (typeof dto.maxCapacity !== "number" || !Number.isInteger(dto.maxCapacity) || dto.maxCapacity <= 0) {
@@ -177,6 +218,14 @@ export class RestaurantsService {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(dto.closeTime)) {
       throw new BadRequestException("영업 종료 시간은 HH:mm 형식이어야 합니다.");
     }
+
+    if (dto.openTime >= dto.closeTime) {
+      throw new BadRequestException("영업 종료 시간은 시작 시간보다 늦어야 합니다.");
+    }
+
+    if (!/^[0-9\-+()\s]{8,30}$/.test(dto.phone)) {
+      throw new BadRequestException("전화번호 형식이 올바르지 않습니다.");
+    }
   }
 
   private toResponse(row: RestaurantRow) {
@@ -185,6 +234,8 @@ export class RestaurantsService {
       ownerId: row.owner_id,
       name: row.name,
       address: row.address,
+      phone: row.phone,
+      imageUrl: row.image_url,
       category: row.category,
       description: row.description,
       maxCapacity: row.max_capacity,

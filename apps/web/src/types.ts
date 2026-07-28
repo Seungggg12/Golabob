@@ -110,7 +110,15 @@ export type AppScreen =
   | "ownerHome"
   | "ownerRequestDetail"
   | "createOffer"
+  | "restaurantRegister"
+  | "restaurantList"
+  | "restaurantDetail"
+  | "myRestaurants"
+  | "myReservation"
+  | "writeReview"
+  | "ownerReservations"
   | "myPage";
+
 
 export type Navigate = (screen: AppScreen) => void;
 
