@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nest start --watch",
     "start": "node dist/main.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:status": "node scripts/migrate.js --status",
     "build": "nest build",
     "test": "node --test dist/**/*.spec.js"
   },

@@ -9,14 +9,13 @@
     "dev:api": "npm --workspace @golabob/api run dev",
     "dev:web": "npm --workspace @golabob/web run dev",
     "dev:mobile": "npm --workspace @golabob/mobile run dev",
+    "migrate:api": "npm --workspace @golabob/api run migrate",
+    "migrate:status:api": "npm --workspace @golabob/api run migrate:status",
     "build:api": "npm --workspace @golabob/api run build",
     "build:web": "npm --workspace @golabob/web run build",
     "test": "npm --workspace @golabob/api test"
   },
   "devDependencies": {
     "@nestjs/platform-express": "^11.1.27"
-  },
-  "dependencies": {
-    "@prisma/client": "^7.8.0"
   }
 }
