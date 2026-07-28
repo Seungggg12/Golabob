@@ -45,6 +45,16 @@ export class OffersController {
     return this.offersService.findOwnerOffers(user, restaurantId);
   }
 
+  @ApiOperation({
+    summary: "오퍼 작성용 내 식당 목록 조회",
+    description: "로그인한 사장이 오퍼를 보낼 식당을 이름으로 선택할 수 있도록 본인 식당 목록을 조회합니다.",
+  })
+  @Roles("owner")
+  @Get("owner/offers/restaurants")
+  findOwnerRestaurants(@CurrentUser() user: AuthUser) {
+    return this.offersService.findOwnerRestaurants(user);
+  }
+
   @ApiOperation({ summary: "보낸 오퍼 상세 조회", description: "사장이 본인이 보낸 특정 오퍼의 상세 내용을 확인합니다." })
   @ApiParam({ name: "id", example: "1", description: "조회할 오퍼 id" })
   @Roles("owner")

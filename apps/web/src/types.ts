@@ -12,6 +12,67 @@ export interface AuthResponse {
   accessToken: string;
 }
 
+export interface DiningRequest {
+  id: number;
+  userId: string;
+  title: string;
+  diningDate: string;
+  diningTime: string;
+  headCount: number;
+  region: string;
+  budgetPerPerson: number;
+  preferredMenu: string | null;
+  requiredOptions: string | null;
+  memo: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDiningRequestInput {
+  title: string;
+  diningDate: string;
+  diningTime: string;
+  headCount: number;
+  region: string;
+  budgetPerPerson: number;
+  preferredMenu?: string;
+  requiredOptions?: string;
+  memo?: string;
+}
+
+export interface Offer {
+  id: number;
+  diningRequestId: number;
+  restaurantId: string;
+  pricePerPerson: number;
+  menuDescription: string;
+  serviceDescription: string | null;
+  seatDescription: string | null;
+  availableTime: string;
+  ownerComment: string | null;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOfferInput {
+  restaurantId: string;
+  pricePerPerson: number;
+  menuDescription: string;
+  serviceDescription?: string;
+  seatDescription?: string;
+  availableTime: string;
+  ownerComment?: string;
+}
+
+export interface OfferRestaurant {
+  id: string;
+  name: string;
+  address: string;
+}
+
 export type AuthMode = "login" | "signup";
 export type UserRole = "user" | "owner";
 export type AccountRole = UserRole | "admin";
