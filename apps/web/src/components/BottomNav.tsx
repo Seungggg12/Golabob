@@ -14,6 +14,7 @@ export function BottomNav({
     { icon: "home", label: "홈", screen: homeScreen },
     { icon: role === "owner" ? "request_page" : "edit_calendar", label: "요청", screen: role === "owner" ? "ownerHome" : "createRequest" },
     { icon: "event_available", label: "예약", screen: "confirmation" },
+    { icon: "calendar_month", label: "내 예약", screen: "myReservation" },
     { icon: "person", label: "마이", screen: "myPage" },
   ];
 

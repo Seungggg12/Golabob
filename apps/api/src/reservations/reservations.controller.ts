@@ -74,4 +74,73 @@ export class ReservationsController {
   findForOwner(@Headers() headers: Record<string, string | string[] | undefined>) {
     return this.reservationsService.findForOwner(parseRequestUser(headers));
   }
+  @ApiOperation({
+    summary: "사장 예약 확정",
+    description:
+      "사장이 본인 식당에 들어온 예약 요청을 확정합니다.",
+  })
+  @ApiParam({
+    name: "id",
+    example: "예약 UUID",
+    description: "확정할 예약 id",
+  })
+  @ApiHeader({
+    name: "x-user-id",
+    example: "2",
+    description: "임시 로그인 사장 id",
+  })
+  @ApiHeader({
+    name: "x-user-role",
+    example: "OWNER",
+    description: "임시 역할",
+  })
+  @Patch("owner/reservations/:id/confirm")
+  confirmForOwner(
+    @Headers()
+    headers: Record<
+      string,
+      string | string[] | undefined
+    >,
+    @Param("id") id: string,
+  ) {
+    return this.reservationsService.confirmForOwner(
+      parseRequestUser(headers),
+      id,
+    );
+  }
+  
+  @ApiOperation({
+    summary: "사장 예약 거절",
+    description:
+      "사장이 본인 식당에 들어온 예약 요청을 거절합니다.",
+  })
+  @ApiParam({
+    name: "id",
+    example: "예약 UUID",
+    description: "거절할 예약 id",
+  })
+  @ApiHeader({
+    name: "x-user-id",
+    example: "1",
+    description: "임시 로그인 사장 id",
+  })
+  @ApiHeader({
+    name: "x-user-role",
+    example: "OWNER",
+    description: "임시 역할",
+  })
+  @Patch("owner/reservations/:id/reject")
+  rejectForOwner(
+    @Headers()
+    headers: Record<
+      string,
+      string | string[] | undefined
+    >,
+    @Param("id") id: string,
+  ) {
+    return this.reservationsService.rejectForOwner(
+      parseRequestUser(headers),
+      id,
+    );
+  }
 }
