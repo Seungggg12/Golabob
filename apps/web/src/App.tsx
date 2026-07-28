@@ -23,7 +23,9 @@ import {
   DiningRequest,
   Offer,
   OfferRestaurant,
+  OfferSelectionResponse,
   PublicUser,
+  Reservation,
   UserRole,
 } from "./types";
 
@@ -132,6 +134,8 @@ function App() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [offerRestaurants, setOfferRestaurants] = useState<OfferRestaurant[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<DiningRequest | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [confirmedReservation, setConfirmedReservation] = useState<Reservation | null>(null);
 
   const title = authMode === "login" ? "다시 만나서 반가워요" : "골라밥 시작하기";
   const submitText = authMode === "login" ? "로그인" : "회원가입";
@@ -153,6 +157,8 @@ function App() {
     setOffers([]);
     setOfferRestaurants([]);
     setSelectedRequest(null);
+    setSelectedOffer(null);
+    setConfirmedReservation(null);
     setDataMessage("");
   };
 
@@ -477,6 +483,29 @@ function App() {
     }
   };
 
+  const selectOffer = async (offer: Offer) => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    setIsLoading(true);
+    setDataMessage("");
+    try {
+      const result = await requestJson<OfferSelectionResponse>(
+        `/api/dining-requests/${selectedRequest.id}/offers/${offer.id}/select`,
+        { method: "POST" },
+      );
+      setSelectedOffer(result.offer);
+      setConfirmedReservation(result.reservation);
+      setSelectedRequest({ ...selectedRequest, status: "reserved" });
+      setScreen("confirmation");
+    } catch (error) {
+      setDataMessage(error instanceof Error ? error.message : "오퍼 선택에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = () => {
     clearSession("로그아웃했습니다.", "splash");
   };
@@ -620,12 +649,19 @@ function App() {
           <OfferComparison
             request={selectedRequest}
             offers={offers}
+            isLoading={isLoading}
             message={dataMessage}
             onNavigate={navigate}
+            onSelect={selectOffer}
           />
         ) : null}
         {activeScreen === "confirmation" ? (
-          <ReservationConfirmation onNavigate={navigate} />
+          <ReservationConfirmation
+            request={selectedRequest}
+            offer={selectedOffer}
+            reservation={confirmedReservation}
+            onNavigate={navigate}
+          />
         ) : null}
         {activeScreen === "ownerHome" ? (
           <OwnerHome
