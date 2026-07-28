@@ -101,4 +101,15 @@ API 서버 실행 후 아래 주소에서 Swagger UI를 확인합니다.
 http://localhost:3000/api/docs
 ```
 
-`GET /api/auth/me`는 우측 상단 `Authorize` 버튼에 로그인 응답의 `accessToken`을 Bearer 토큰으로 넣고 테스트합니다.
+보호 API는 우측 상단 `Authorize` 버튼에 로그인 응답의 `accessToken`을 Bearer 토큰으로 넣고 테스트합니다. 사용자와 역할은 토큰에서 확인하므로 `x-user-id`, `x-user-role` 같은 임시 헤더는 사용하지 않습니다.
+
+## DB 마이그레이션
+
+기존 로컬 DB의 회식 요청/오퍼 ID 타입을 현재 API 스키마와 맞출 때 아래 명령을 프로젝트 루트에서 실행합니다.
+
+```bash
+docker compose cp apps/api/migrations/20260713_align_dining_offer_ids.sql postgres:/tmp/20260713_align_dining_offer_ids.sql
+docker compose exec postgres psql -U postgres -d golabob -f /tmp/20260713_align_dining_offer_ids.sql
+```
+
+마이그레이션은 `dining_requests` 또는 `offers`에 데이터가 있으면 중단됩니다.

@@ -2,9 +2,8 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Post,
-  UnauthorizedException,
+  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -18,6 +17,9 @@ import {
 } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { AuthResponseDto, LoginDto, MeResponseDto, SignupDto } from "./auth.dto";
+import { AuthUser } from "./auth-user";
+import { CurrentUser } from "./current-user.decorator";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @ApiTags("Auth")
 @Controller("auth")
@@ -46,12 +48,9 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOkResponse({ type: MeResponseDto })
   @ApiUnauthorizedResponse({ description: "인증이 필요합니다." })
+  @UseGuards(JwtAuthGuard)
   @Get("me")
-  me(@Headers("authorization") authorization?: string) {
-    if (!authorization?.startsWith("Bearer ")) {
-      throw new UnauthorizedException("인증이 필요합니다.");
-    }
-
-    return this.authService.me(authorization.slice("Bearer ".length));
+  me(@CurrentUser() user: AuthUser) {
+    return this.authService.me(user.id);
   }
 }

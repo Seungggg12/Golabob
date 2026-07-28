@@ -5,16 +5,18 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
-import * as jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { DbService } from "../shared/db.service";
-import { LoginDto, SignupDto, UserRole } from "./auth.dto";
+import { UserRole } from "./auth-user";
+import { LoginDto, SignupDto } from "./auth.dto";
+import { JwtTokenService } from "./jwt-token.service";
 
 interface UserRow {
   id: string;
   email: string;
   password_hash: string;
   role: UserRole;
+  roles: UserRole[];
   created_at: Date;
 }
 
@@ -23,6 +25,7 @@ interface User {
   email: string;
   passwordHash: string;
   role: UserRole;
+  roles: UserRole[];
   createdAt: Date;
 }
 
@@ -30,7 +33,10 @@ const PUBLIC_SIGNUP_ROLES = new Set(["user", "owner"]);
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly jwtTokenService: JwtTokenService,
+  ) {}
 
   async signup(body: SignupDto) {
     const email = this.normalizeEmail(body.email);
@@ -56,7 +62,7 @@ export class AuthService {
 
       return {
         user: this.toPublicUser(user),
-        accessToken: this.createAccessToken(user),
+        accessToken: this.jwtTokenService.createAccessToken(user),
       };
     } catch (error) {
       if (this.isUniqueViolation(error)) {
@@ -89,13 +95,12 @@ export class AuthService {
 
     return {
       user: this.toPublicUser(user),
-      accessToken: this.createAccessToken(user),
+      accessToken: this.jwtTokenService.createAccessToken(user),
     };
   }
 
-  async me(accessToken: string) {
-    const payload = this.verifyToken(accessToken);
-    const user = await this.findUserById(payload.sub);
+  async me(userId: string) {
+    const user = await this.findUserById(userId);
 
     if (!user) {
       throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
@@ -112,7 +117,8 @@ export class AuthService {
 
   private async findUserByEmail(email: string) {
     const result = await this.dbService.query<UserRow>(
-      "SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1",
+      `${this.userSelectSql()}
+       WHERE u.email = $1`,
       [email],
     );
 
@@ -121,7 +127,8 @@ export class AuthService {
 
   private async findUserById(id: string) {
     const result = await this.dbService.query<UserRow>(
-      "SELECT id, email, password_hash, role, created_at FROM users WHERE id = $1",
+      `${this.userSelectSql()}
+       WHERE u.id = $1`,
       [id],
     );
 
@@ -129,11 +136,21 @@ export class AuthService {
   }
 
   private async createUser(email: string, passwordHash: string, role: UserRole) {
+    const roles: UserRole[] = role === "owner" ? ["user", "owner"] : [role];
     const result = await this.dbService.query<UserRow>(
-      `INSERT INTO users (id, email, password_hash, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, password_hash, role, created_at`,
-      [randomUUID(), email, passwordHash, role],
+      `WITH new_user AS (
+         INSERT INTO users (id, email, password_hash, role)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, email, password_hash, role, created_at
+       ), new_roles AS (
+         INSERT INTO user_roles (user_id, role)
+         SELECT new_user.id, requested_role
+         FROM new_user
+         CROSS JOIN UNNEST($5::text[]) AS requested_role
+       )
+       SELECT new_user.*, $5::text[] AS roles
+       FROM new_user`,
+      [randomUUID(), email, passwordHash, role, roles],
     );
 
     return this.mapUser(result.rows[0]);
@@ -145,6 +162,7 @@ export class AuthService {
       email: row.email,
       passwordHash: row.password_hash,
       role: row.role,
+      roles: row.roles,
       createdAt: row.created_at,
     };
   }
@@ -154,46 +172,28 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      roles: user.roles,
     };
   }
 
-  private createAccessToken(user: User) {
-    return jwt.sign(
-      {
-        role: user.role,
-      },
-      this.getJwtSecret(),
-      {
-        expiresIn: "1h",
-        subject: user.id,
-      },
-    );
-  }
-
-  private verifyToken(accessToken: string): jwt.JwtPayload & { sub: string } {
-    try {
-      const payload = jwt.verify(accessToken, this.getJwtSecret());
-
-      if (!payload || typeof payload === "string" || !payload.sub) {
-        throw new Error("Missing subject");
-      }
-
-      return payload as jwt.JwtPayload & { sub: string };
-    } catch (error) {
-      throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
-    }
-  }
-
-  private getJwtSecret() {
-    if (process.env.JWT_SECRET) {
-      return process.env.JWT_SECRET;
-    }
-
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("JWT_SECRET 환경 변수가 필요합니다.");
-    }
-
-    return "golabob-local-jwt-secret";
+  private userSelectSql() {
+    return `SELECT
+              u.id,
+              u.email,
+              u.password_hash,
+              u.role,
+              u.created_at,
+              COALESCE(
+                (
+                  SELECT ARRAY_AGG(ur.role ORDER BY
+                    CASE ur.role WHEN 'user' THEN 1 WHEN 'owner' THEN 2 ELSE 3 END
+                  )
+                  FROM user_roles ur
+                  WHERE ur.user_id = u.id
+                ),
+                ARRAY[u.role]
+              ) AS roles
+            FROM users u`;
   }
 
   private isUniqueViolation(error: unknown) {

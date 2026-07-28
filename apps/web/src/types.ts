@@ -3,7 +3,8 @@ import { FormEvent } from "react";
 export interface PublicUser {
   id: string;
   email: string;
-  role: string;
+  role: AccountRole;
+  roles: AccountRole[];
 }
 
 export interface AuthResponse {
@@ -96,6 +97,7 @@ export interface OfferSelectionResponse {
 
 export type AuthMode = "login" | "signup";
 export type UserRole = "user" | "owner";
+export type AccountRole = UserRole | "admin";
 export type AppScreen =
   | "splash"
   | "roleSelection"
@@ -120,11 +122,13 @@ export interface AuthScreenProps {
   isLoading: boolean;
   message: string;
   password: string;
+  rememberLogin: boolean;
   role: UserRole;
   setApiBaseUrl: (value: string) => void;
   setAuthMode: (value: AuthMode) => void;
   setEmail: (value: string) => void;
   setPassword: (value: string) => void;
+  setRememberLogin: (value: boolean) => void;
   setRole: (value: UserRole) => void;
   submitAuth: (event: FormEvent) => void;
   submitText: string;
