@@ -2,12 +2,14 @@ import { BrandMark } from "../components/BrandMark";
 import { UserRole } from "../types";
 
 export function RoleSelection({
-  role,
-  setRole,
+  roles,
+  selectedRole,
+  onSelect,
   onContinue,
 }: {
-  role: UserRole;
-  setRole: (value: UserRole) => void;
+  roles: UserRole[];
+  selectedRole: UserRole;
+  onSelect: (role: UserRole) => void;
   onContinue: () => void;
 }) {
   return (
@@ -23,15 +25,16 @@ export function RoleSelection({
 
       <section className="role-content">
         <div className="role-title">
-          <h1>어떤 방식으로 이용하시나요?</h1>
-          <p>회원님의 서비스 이용 목적을 선택해 주세요.</p>
+          <h1>회원님의 이용 유형</h1>
+          <p>가입한 계정 유형에 맞는 서비스로 이동합니다.</p>
         </div>
 
         <div className="role-card-grid">
           <button
-            className={role === "user" ? "role-card selected" : "role-card"}
+            className={selectedRole === "user" ? "role-card selected" : "role-card"}
             type="button"
-            onClick={() => setRole("user")}
+            disabled={!roles.includes("user")}
+            onClick={() => onSelect("user")}
           >
             <span className="material-symbols-outlined selected-check" aria-hidden="true">
               check
@@ -45,9 +48,10 @@ export function RoleSelection({
           </button>
 
           <button
-            className={role === "owner" ? "role-card selected" : "role-card"}
+            className={selectedRole === "owner" ? "role-card selected" : "role-card"}
             type="button"
-            onClick={() => setRole("owner")}
+            disabled={!roles.includes("owner")}
+            onClick={() => onSelect("owner")}
           >
             <span className="material-symbols-outlined selected-check" aria-hidden="true">
               check
@@ -65,7 +69,7 @@ export function RoleSelection({
           <button className="wide-primary" type="button" onClick={onContinue}>
             계속하기
           </button>
-          <p>가입 후 마이페이지에서 역할을 추가할 수 있습니다.</p>
+          <p>계정에 부여된 역할 안에서 언제든 이용 모드를 전환할 수 있습니다.</p>
         </div>
       </section>
     </main>

@@ -5,14 +5,10 @@ import {
     NotFoundException,
   } from "@nestjs/common";
   import { randomUUID } from "node:crypto";
+  import { AuthUser, hasRole } from "../auth/auth-user";
   import { DbService } from "../shared/db.service";
   import { CreateReviewDto } from "./dto/create-review.dto";
   import { UpdateReviewDto } from "./dto/update-review.dto";
-  
-  interface RequestUser {
-    id: string;
-    role: string;
-  }
   
   interface ReviewRow {
     id: string;
@@ -36,8 +32,8 @@ import {
   export class ReviewsService {
     constructor(private readonly dbService: DbService) {}
   
-    async create(user: RequestUser, dto: CreateReviewDto) {
-      if (user.role !== "USER") {
+    async create(user: AuthUser, dto: CreateReviewDto) {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 리뷰를 작성할 수 있습니다.");
       }
   
@@ -87,8 +83,8 @@ import {
       return this.toResponse(result.rows[0]);
     }
   
-    async findMine(user: RequestUser) {
-      if (user.role !== "USER") {
+    async findMine(user: AuthUser) {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 내 리뷰를 조회할 수 있습니다.");
       }
   
@@ -115,8 +111,8 @@ import {
       return result.rows.map((row) => this.toResponse(row));
     }
   
-    async updateMine(user: RequestUser, id: string, dto: UpdateReviewDto) {
-      if (user.role !== "USER") {
+    async updateMine(user: AuthUser, id: string, dto: UpdateReviewDto) {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 리뷰를 수정할 수 있습니다.");
       }
   
@@ -149,8 +145,8 @@ import {
       return this.toResponse(result.rows[0]);
     }
   
-    async removeMine(user: RequestUser, id: string) {
-      if (user.role !== "USER") {
+    async removeMine(user: AuthUser, id: string) {
+      if (!hasRole(user, "user")) {
         throw new ForbiddenException("일반 사용자만 리뷰를 삭제할 수 있습니다.");
       }
   
