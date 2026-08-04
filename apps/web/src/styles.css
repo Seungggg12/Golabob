@@ -693,6 +693,15 @@ dd {
   min-height: 18px;
 }
 
+.agreement-list {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  background: var(--surface-mid);
+}
+
 .primary-action,
 .wide-primary {
   min-height: 54px;

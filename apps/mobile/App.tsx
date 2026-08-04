@@ -14,8 +14,13 @@ const defaultApiBaseUrl = "http://localhost:3000";
 
 export default function App() {
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
+  const [name, setName] = useState("홍길동");
   const [email, setEmail] = useState("user@example.com");
+  const [phone, setPhone] = useState("010-1234-5678");
   const [password, setPassword] = useState("password1234");
+  const [serviceTerms, setServiceTerms] = useState(false);
+  const [privacyPolicy, setPrivacyPolicy] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [currentUser, setCurrentUser] = useState("-");
   const [log, setLog] = useState("대기 중");
@@ -54,15 +59,24 @@ export default function App() {
 
   const signup = async () => {
     try {
-      const body = await requestJson<{ user: { email: string; role: string }; accessToken: string }>(
+      const body = await requestJson<{
+        user: { name: string; email: string; role: string };
+        accessToken: string;
+      }>(
         "/api/auth/signup",
         {
           method: "POST",
-          body: JSON.stringify({ email, password, role: "user" }),
+          body: JSON.stringify({
+            name,
+            email,
+            phone,
+            password,
+            agreements: { serviceTerms, privacyPolicy, marketingConsent },
+          }),
         },
       );
       setAccessToken(body.accessToken);
-      setCurrentUser(`${body.user.email} / ${body.user.role}`);
+      setCurrentUser(`${body.user.name} / ${body.user.email} / ${body.user.role}`);
       appendLog("POST /api/auth/signup", body);
     } catch (error) {
       Alert.alert("회원가입 실패", String(error));
@@ -101,10 +115,31 @@ export default function App() {
         </View>
 
         <View style={styles.panel}>
+          <Text style={styles.label}>이름</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} />
           <Text style={styles.label}>이메일</Text>
           <TextInput style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" />
+          <Text style={styles.label}>휴대전화 번호</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
           <Text style={styles.label}>비밀번호</Text>
           <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry />
+          <TouchableOpacity style={styles.consentRow} onPress={() => setServiceTerms(!serviceTerms)}>
+            <Text style={styles.consentMark}>{serviceTerms ? "[x]" : "[ ]"}</Text>
+            <Text style={styles.consentText}>서비스 이용약관 동의 (필수)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.consentRow} onPress={() => setPrivacyPolicy(!privacyPolicy)}>
+            <Text style={styles.consentMark}>{privacyPolicy ? "[x]" : "[ ]"}</Text>
+            <Text style={styles.consentText}>개인정보 수집 및 이용 동의 (필수)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.consentRow} onPress={() => setMarketingConsent(!marketingConsent)}>
+            <Text style={styles.consentMark}>{marketingConsent ? "[x]" : "[ ]"}</Text>
+            <Text style={styles.consentText}>마케팅 정보 수신 동의 (선택)</Text>
+          </TouchableOpacity>
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.button} onPress={signup}>
               <Text style={styles.buttonText}>회원가입</Text>
@@ -172,6 +207,23 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     gap: 10,
+  },
+  consentRow: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  consentMark: {
+    color: "#246b5a",
+    fontFamily: "monospace",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  consentText: {
+    flex: 1,
+    color: "#1d2624",
+    fontSize: 13,
   },
   button: {
     flex: 1,

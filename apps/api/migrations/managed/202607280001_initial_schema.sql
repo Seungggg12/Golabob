@@ -3,11 +3,21 @@
 
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL CHECK (CHAR_LENGTH(BTRIM(name)) BETWEEN 2 AND 50),
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('user', 'owner', 'admin')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'suspended', 'withdrawn')),
+  email_verified_at TIMESTAMPTZ,
+  phone_verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_lower
+ON users(LOWER(email));
 
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -25,6 +35,45 @@ INSERT INTO user_roles (user_id, role)
 SELECT id, 'user'
 FROM users
 ON CONFLICT (user_id, role) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS terms (
+  id BIGSERIAL PRIMARY KEY,
+  code TEXT NOT NULL,
+  version INTEGER NOT NULL CHECK (version > 0),
+  title TEXT NOT NULL,
+  is_required BOOLEAN NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  effective_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_terms_code_version UNIQUE (code, version)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_terms_active_code
+ON terms(code)
+WHERE is_active;
+
+INSERT INTO terms (code, version, title, is_required, is_active, effective_at)
+VALUES
+  ('service_terms', 1, '서비스 이용약관', TRUE, TRUE, '2026-08-04T00:00:00+09:00'),
+  ('privacy_policy', 1, '개인정보 수집 및 이용 동의', TRUE, TRUE, '2026-08-04T00:00:00+09:00'),
+  ('marketing_consent', 1, '마케팅 정보 수신 동의', FALSE, TRUE, '2026-08-04T00:00:00+09:00')
+ON CONFLICT (code, version) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS user_term_agreements (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  term_id BIGINT NOT NULL REFERENCES terms(id),
+  agreed BOOLEAN NOT NULL,
+  agreed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, term_id),
+  CONSTRAINT ck_user_term_agreement_time CHECK (
+    (agreed AND agreed_at IS NOT NULL)
+    OR (NOT agreed AND agreed_at IS NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_term_agreements_term_id
+ON user_term_agreements(term_id);
 
 CREATE TABLE IF NOT EXISTS restaurants (
   id UUID PRIMARY KEY,
@@ -154,6 +203,17 @@ BEGIN
   FROM (
     VALUES
       ('users', 'id', 'uuid'),
+      ('users', 'name', 'text'),
+      ('users', 'email', 'text'),
+      ('users', 'phone', 'text'),
+      ('users', 'status', 'text'),
+      ('users', 'email_verified_at', 'timestamp with time zone'),
+      ('users', 'phone_verified_at', 'timestamp with time zone'),
+      ('terms', 'id', 'bigint'),
+      ('terms', 'code', 'text'),
+      ('terms', 'version', 'integer'),
+      ('user_term_agreements', 'user_id', 'uuid'),
+      ('user_term_agreements', 'term_id', 'bigint'),
       ('restaurants', 'id', 'uuid'),
       ('restaurants', 'owner_id', 'text'),
       ('restaurants', 'phone', 'text'),

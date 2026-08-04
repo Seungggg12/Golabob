@@ -2,7 +2,12 @@ import { FormEvent } from "react";
 
 export interface PublicUser {
   id: string;
+  name: string;
   email: string;
+  phone: string;
+  status: "active" | "suspended" | "withdrawn";
+  emailVerified: boolean;
+  phoneVerified: boolean;
   role: AccountRole;
   roles: AccountRole[];
 }
@@ -127,17 +132,25 @@ export interface AuthScreenProps {
   authMode: AuthMode;
   email: string;
   fetchMe: () => void;
+  marketingConsent: boolean;
   isLoading: boolean;
   message: string;
+  name: string;
   password: string;
+  phone: string;
+  privacyPolicy: boolean;
   rememberLogin: boolean;
-  role: UserRole;
+  serviceTerms: boolean;
   setApiBaseUrl: (value: string) => void;
   setAuthMode: (value: AuthMode) => void;
   setEmail: (value: string) => void;
+  setMarketingConsent: (value: boolean) => void;
+  setName: (value: string) => void;
   setPassword: (value: string) => void;
+  setPhone: (value: string) => void;
+  setPrivacyPolicy: (value: boolean) => void;
   setRememberLogin: (value: boolean) => void;
-  setRole: (value: UserRole) => void;
+  setServiceTerms: (value: boolean) => void;
   submitAuth: (event: FormEvent) => void;
   submitText: string;
   title: string;

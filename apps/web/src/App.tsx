@@ -128,8 +128,13 @@ function App() {
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
   const [accessToken, setAccessToken] = useState(readStoredAccessToken);
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
+  const [name, setName] = useState("홍길동");
   const [email, setEmail] = useState("user@example.com");
+  const [phone, setPhone] = useState("010-1234-5678");
   const [password, setPassword] = useState("password1234");
+  const [serviceTerms, setServiceTerms] = useState(false);
+  const [privacyPolicy, setPrivacyPolicy] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [rememberLogin, setRememberLogin] = useState(
     () => Boolean(localStorage.getItem(accessTokenKey)),
   );
@@ -176,7 +181,7 @@ function App() {
     const roleLabels = getServiceRoles(currentUser).map((userRole) =>
       userRole === "owner" ? "사장님" : "예약자",
     );
-    return `${currentUser.email} / ${roleLabels.join(", ")}`;
+    return `${currentUser.name} (${currentUser.email}) / ${roleLabels.join(", ")}`;
   }, [currentUser]);
 
   const resetDataState = () => {
@@ -408,7 +413,19 @@ function App() {
 
     try {
       const path = authMode === "login" ? "/api/auth/login" : "/api/auth/signup";
-      const payload = authMode === "login" ? { email, password } : { email, password, role };
+      const payload = authMode === "login"
+        ? { email, password }
+        : {
+            name,
+            email,
+            phone,
+            password,
+            agreements: {
+              serviceTerms,
+              privacyPolicy,
+              marketingConsent,
+            },
+          };
       const body = await requestJson<AuthResponse>(
         path,
         {
@@ -564,17 +581,25 @@ function App() {
       authMode={authMode}
       email={email}
       fetchMe={fetchMe}
+      marketingConsent={marketingConsent}
       isLoading={isLoading}
       message={message}
+      name={name}
       password={password}
+      phone={phone}
+      privacyPolicy={privacyPolicy}
       rememberLogin={rememberLogin}
-      role={role}
+      serviceTerms={serviceTerms}
       setApiBaseUrl={setApiBaseUrl}
       setAuthMode={setAuthMode}
       setEmail={setEmail}
+      setMarketingConsent={setMarketingConsent}
+      setName={setName}
       setPassword={setPassword}
+      setPhone={setPhone}
+      setPrivacyPolicy={setPrivacyPolicy}
       setRememberLogin={setRememberLogin}
-      setRole={setRole}
+      setServiceTerms={setServiceTerms}
       submitAuth={submitAuth}
       submitText={submitText}
       title={title}

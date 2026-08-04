@@ -6,17 +6,25 @@ export function AuthScreen({
   authMode,
   email,
   fetchMe,
+  marketingConsent,
   isLoading,
   message,
+  name,
   password,
+  phone,
+  privacyPolicy,
   rememberLogin,
-  role,
+  serviceTerms,
   setApiBaseUrl,
   setAuthMode,
   setEmail,
+  setMarketingConsent,
+  setName,
   setPassword,
+  setPhone,
+  setPrivacyPolicy,
   setRememberLogin,
-  setRole,
+  setServiceTerms,
   submitAuth,
   submitText,
   title,
@@ -67,25 +75,6 @@ export function AuthScreen({
           </button>
         </div>
 
-        {authMode === "signup" ? (
-          <div className="role-toggle" aria-label="가입 유형">
-            <button
-              className={role === "user" ? "active" : ""}
-              type="button"
-              onClick={() => setRole("user")}
-            >
-              예약자
-            </button>
-            <button
-              className={role === "owner" ? "active" : ""}
-              type="button"
-              onClick={() => setRole("owner")}
-            >
-              사장님
-            </button>
-          </div>
-        ) : null}
-
         <div className="auth-heading">
           <p className="eyebrow">Account</p>
           <h2>{title}</h2>
@@ -93,6 +82,18 @@ export function AuthScreen({
         </div>
 
         <form className="auth-form" onSubmit={submitAuth}>
+          {authMode === "signup" ? (
+            <label>
+              이름
+              <input
+                autoComplete="name"
+                placeholder="홍길동"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+          ) : null}
+
           <label>
             이메일 주소
             <input
@@ -103,6 +104,19 @@ export function AuthScreen({
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
+
+          {authMode === "signup" ? (
+            <label>
+              휴대전화 번호
+              <input
+                autoComplete="tel"
+                inputMode="tel"
+                placeholder="010-1234-5678"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+              />
+            </label>
+          ) : null}
 
           <label>
             비밀번호
@@ -115,16 +129,45 @@ export function AuthScreen({
             />
           </label>
 
-          <div className="form-extra">
-            <label className="check-label">
-              <input
-                type="checkbox"
-                checked={rememberLogin}
-                onChange={(event) => setRememberLogin(event.target.checked)}
-              />
-              로그인 유지
-            </label>
-          </div>
+          {authMode === "signup" ? (
+            <div className="agreement-list">
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={serviceTerms}
+                  onChange={(event) => setServiceTerms(event.target.checked)}
+                />
+                서비스 이용약관 동의 (필수)
+              </label>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={privacyPolicy}
+                  onChange={(event) => setPrivacyPolicy(event.target.checked)}
+                />
+                개인정보 수집 및 이용 동의 (필수)
+              </label>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={marketingConsent}
+                  onChange={(event) => setMarketingConsent(event.target.checked)}
+                />
+                마케팅 정보 수신 동의 (선택)
+              </label>
+            </div>
+          ) : (
+            <div className="form-extra">
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={rememberLogin}
+                  onChange={(event) => setRememberLogin(event.target.checked)}
+                />
+                로그인 유지
+              </label>
+            </div>
+          )}
 
           <button className="primary-action" type="submit" disabled={isLoading}>
             {isLoading ? "처리 중" : submitText}

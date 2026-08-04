@@ -5,6 +5,8 @@
 ```mermaid
 erDiagram
     USERS ||--o{ USER_ROLES : has
+    USERS ||--o{ USER_TERM_AGREEMENTS : accepts
+    TERMS ||--o{ USER_TERM_AGREEMENTS : records
     USERS ||--o{ OWNER_APPLICATIONS : submits
     USERS ||--o{ RESTAURANTS : owns
     USERS ||--o{ DINING_REQUESTS : creates
@@ -35,10 +37,14 @@ erDiagram
 
     USERS {
         uuid id PK
+        text name
         text email UK
+        text phone UK
         text password_hash
         text role
         text status
+        timestamptz email_verified_at
+        timestamptz phone_verified_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -46,6 +52,25 @@ erDiagram
     USER_ROLES {
         uuid user_id PK,FK
         text role PK
+        timestamptz created_at
+    }
+
+    TERMS {
+        bigint id PK
+        text code UK
+        int version UK
+        text title
+        boolean is_required
+        boolean is_active
+        timestamptz effective_at
+        timestamptz created_at
+    }
+
+    USER_TERM_AGREEMENTS {
+        uuid user_id PK,FK
+        bigint term_id PK,FK
+        boolean agreed
+        timestamptz agreed_at
         timestamptz created_at
     }
 
@@ -254,8 +279,10 @@ erDiagram
 
 | 테이블 | 제약조건 |
 | --- | --- |
-| users | `email` 유일, `status IN ('active', 'suspended', 'withdrawn')` |
+| users | 대소문자 무관 `email` 유일, E.164 `phone` 유일, `status IN ('active', 'suspended', 'withdrawn')` |
 | user_roles | `(user_id, role)` 복합 PK, 역할 CHECK |
+| terms | `(code, version)` 유일, 코드별 활성 버전 하나 |
+| user_term_agreements | `(user_id, term_id)` 복합 PK, 동의 여부와 동의 시각 일치 |
 | owner_applications | 활성 신청 중복 방지 부분 유일 인덱스 |
 | restaurants | owner UUID FK, 상태 CHECK, 수용 인원 양수 |
 | restaurant_business_hours | `(restaurant_id, day_of_week)` 유일, 요일 0~6 |

@@ -28,10 +28,19 @@
 
 ```json
 {
+  "name": "홍길동",
   "email": "user@example.com",
-  "password": "password1234"
+  "phone": "010-1234-5678",
+  "password": "password1234",
+  "agreements": {
+    "serviceTerms": true,
+    "privacyPolicy": true,
+    "marketingConsent": false
+  }
 }
 ```
+
+서버는 휴대전화 번호를 `+82` E.164 형식으로 정규화한다. 서비스 이용약관과 개인정보 수집 및 이용 동의가 모두 `true`가 아니면 회원가입을 거부하며, 계정과 기본 `user` 역할 및 활성 약관 버전별 동의를 하나의 트랜잭션으로 저장한다.
 
 사업자 승인 API는 신청 행 잠금, 상태 변경, 역할 추가, 이력 생성을 한 트랜잭션으로 처리한다.
 

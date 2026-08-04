@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
+  ApiBadRequestResponse,
   ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -29,7 +30,8 @@ export class AuthController {
   @ApiOperation({ summary: "회원가입" })
   @ApiBody({ type: SignupDto })
   @ApiCreatedResponse({ type: AuthResponseDto })
-  @ApiConflictResponse({ description: "이미 가입된 이메일입니다." })
+  @ApiBadRequestResponse({ description: "회원 정보 형식 또는 필수 약관 동의가 올바르지 않습니다." })
+  @ApiConflictResponse({ description: "이미 가입된 이메일 또는 전화번호입니다." })
   @Post("signup")
   signup(@Body() body: SignupDto) {
     return this.authService.signup(body);
