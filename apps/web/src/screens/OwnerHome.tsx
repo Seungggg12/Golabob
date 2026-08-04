@@ -231,10 +231,18 @@ export function OwnerHome({
           />
         </button>
 
-        <MetricCard
-          label="보낸 오퍼"
-          value={`${offerCount}건`}
-        />
+        <button
+          type="button"
+          className="owner-metric-button"
+          onClick={() =>
+            onNavigate("ownerOffers")
+          }
+        >
+          <MetricCard
+            label="보낸 오퍼"
+            value={`${offerCount}건`}
+          />
+        </button>
 
         <MetricCard
           label="예약 확정"

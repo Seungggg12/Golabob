@@ -14,7 +14,7 @@ export function BottomNav({
       ? [
           { icon: "home", label: "홈", screen: "ownerHome" },
           { icon: "request_page", label: "요청", screen: "ownerHome" },
-          { icon: "local_offer", label: "오퍼", screen: "createOffer" },
+          { icon: "local_offer", label: "오퍼", screen: "ownerOffers" },
           { icon: "calendar_month", label: "예약", screen: "ownerReservations" },
           { icon: "person", label: "마이", screen: "myPage" },
         ]

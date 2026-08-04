@@ -8,6 +8,8 @@ import { CreateRequest } from "./screens/CreateRequest";
 import { MyPage } from "./screens/MyPage";
 import { OfferComparison } from "./screens/OfferComparison";
 import { OwnerHome } from "./screens/OwnerHome";
+import { OwnerOfferDetail } from "./screens/OwnerOfferDetail";
+import { OwnerOfferList } from "./screens/OwnerOfferList";
 import { OwnerRequestDetail } from "./screens/OwnerRequestDetail";
 import { ReservationConfirmation } from "./screens/ReservationConfirmation";
 import { RequestWaiting } from "./screens/RequestWaiting";
@@ -56,6 +58,8 @@ const ownerScreens = new Set<AppScreen>([
   "ownerHome",
   "ownerRequestDetail",
   "createOffer",
+  "ownerOffers",
+  "ownerOfferDetail",
   "restaurantRegister",
   "myRestaurants",
   "ownerReservations",
@@ -145,6 +149,7 @@ function App() {
   const [myRequests, setMyRequests] = useState<DiningRequest[]>([]);
   const [ownerRequests, setOwnerRequests] = useState<DiningRequest[]>([]);
   const [ownerOffers, setOwnerOffers] = useState<Offer[]>([]);
+  const [selectedOwnerOffer, setSelectedOwnerOffer] = useState<Offer | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [offerRestaurants, setOfferRestaurants] = useState<OfferRestaurant[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<DiningRequest | null>(null);
@@ -183,6 +188,7 @@ function App() {
     setMyRequests([]);
     setOwnerRequests([]);
     setOwnerOffers([]);
+    setSelectedOwnerOffer(null);
     setOffers([]);
     setOfferRestaurants([]);
     setSelectedRequest(null);
@@ -382,6 +388,32 @@ function App() {
     }
   };
 
+  const loadOwnerOffers = async () => {
+    setIsLoading(true);
+    setDataMessage("");
+    try {
+      setOwnerOffers(await requestJson<Offer[]>("/api/owner/offers"));
+    } catch (error) {
+      setDataMessage(error instanceof Error ? error.message : "보낸 오퍼를 불러오지 못했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openOwnerOffer = async (offer: Offer) => {
+    setSelectedOwnerOffer(offer);
+    setScreen("ownerOfferDetail");
+    setIsLoading(true);
+    setDataMessage("");
+    try {
+      setSelectedOwnerOffer(await requestJson<Offer>(`/api/owner/offers/${offer.id}`));
+    } catch (error) {
+      setDataMessage(error instanceof Error ? error.message : "오퍼 상세를 불러오지 못했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!accessToken) {
       return;
@@ -398,6 +430,9 @@ function App() {
     }
     if (screen === "createOffer") {
       void loadOfferRestaurants();
+    }
+    if (screen === "ownerOffers") {
+      void loadOwnerOffers();
     }
   }, [screen, accessToken, selectedRequest?.id]);
 
@@ -717,6 +752,24 @@ function App() {
             message={dataMessage}
             onNavigate={navigate}
             onSubmit={createOffer}
+          />
+        ) : null}
+        {activeScreen === "ownerOffers" ? (
+          <OwnerOfferList
+            offers={ownerOffers}
+            isLoading={isLoading}
+            message={dataMessage}
+            onNavigate={navigate}
+            onRefresh={() => void loadOwnerOffers()}
+            onSelect={(offer) => void openOwnerOffer(offer)}
+          />
+        ) : null}
+        {activeScreen === "ownerOfferDetail" ? (
+          <OwnerOfferDetail
+            offer={selectedOwnerOffer}
+            isLoading={isLoading}
+            message={dataMessage}
+            onNavigate={navigate}
           />
         ) : null}
         {activeScreen === "restaurantRegister" ? (
