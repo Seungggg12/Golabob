@@ -11,9 +11,9 @@ export function MyPage({
 }) {
   const homeScreen = role === "owner" ? "ownerHome" : "userHome";
   const menuItems: Array<{ label: string; screen?: AppScreen }> = [
-    { label: "예약 내역", screen: "confirmation" as const },
+    { label: "예약 내역", screen: role === "owner" ? "ownerReservations" : "myReservation" },
     { label: "내 요청 목록", screen: homeScreen },
-    { label: "보낸 오퍼", screen: role === "owner" ? "ownerHome" as const : undefined },
+    { label: "보낸 오퍼", screen: role === "owner" ? "ownerOffers" as const : undefined },
     { label: "알림 설정" },
     { label: "계정 관리" },
   ];
