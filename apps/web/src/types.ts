@@ -57,6 +57,13 @@ export interface Offer {
   updatedAt: string;
   restaurantName?: string;
   restaurantAddress?: string;
+  requestTitle?: string;
+  requestDiningDate?: string;
+  requestDiningTime?: string;
+  requestHeadCount?: number;
+  requestRegion?: string;
+  requestBudgetPerPerson?: number;
+  requestStatus?: string;
 }
 
 export interface CreateOfferInput {
@@ -110,6 +117,8 @@ export type AppScreen =
   | "ownerHome"
   | "ownerRequestDetail"
   | "createOffer"
+  | "ownerOffers"
+  | "ownerOfferDetail"
   | "restaurantRegister"
   | "restaurantList"
   | "restaurantDetail"

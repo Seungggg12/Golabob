@@ -20,6 +20,13 @@ interface OfferRow {
   updated_at: Date;
   restaurant_name?: string;
   restaurant_address?: string;
+  request_title?: string;
+  request_dining_date?: string;
+  request_dining_time?: string;
+  request_head_count?: number;
+  request_region?: string;
+  request_budget_per_person?: number;
+  request_status?: string;
 }
 
 interface OfferRestaurantRow {
@@ -114,17 +121,39 @@ export class OffersService {
 
     const result = restaurantId
       ? await this.dbService.query<OfferRow>(
-          `SELECT o.*
+          `SELECT
+             o.*,
+             r.name AS restaurant_name,
+             r.address AS restaurant_address,
+             dr.title AS request_title,
+             dr.dining_date AS request_dining_date,
+             dr.dining_time AS request_dining_time,
+             dr.head_count AS request_head_count,
+             dr.region AS request_region,
+             dr.budget_per_person AS request_budget_per_person,
+             dr.status AS request_status
            FROM offers o
            JOIN restaurants r ON r.id = o.restaurant_id
+           JOIN dining_requests dr ON dr.id = o.dining_request_id
            WHERE o.restaurant_id = $1 AND r.owner_id = $2
            ORDER BY o.created_at DESC`,
           [restaurantId, user.id],
         )
       : await this.dbService.query<OfferRow>(
-          `SELECT o.*
+          `SELECT
+             o.*,
+             r.name AS restaurant_name,
+             r.address AS restaurant_address,
+             dr.title AS request_title,
+             dr.dining_date AS request_dining_date,
+             dr.dining_time AS request_dining_time,
+             dr.head_count AS request_head_count,
+             dr.region AS request_region,
+             dr.budget_per_person AS request_budget_per_person,
+             dr.status AS request_status
            FROM offers o
            JOIN restaurants r ON r.id = o.restaurant_id
+           JOIN dining_requests dr ON dr.id = o.dining_request_id
            WHERE r.owner_id = $1
            ORDER BY o.created_at DESC`,
           [user.id],
@@ -155,9 +184,20 @@ export class OffersService {
     assertRole(user, ["owner"]);
 
     const result = await this.dbService.query<OfferRow>(
-      `SELECT o.*
+      `SELECT
+         o.*,
+         r.name AS restaurant_name,
+         r.address AS restaurant_address,
+         dr.title AS request_title,
+         dr.dining_date AS request_dining_date,
+         dr.dining_time AS request_dining_time,
+         dr.head_count AS request_head_count,
+         dr.region AS request_region,
+         dr.budget_per_person AS request_budget_per_person,
+         dr.status AS request_status
        FROM offers o
        JOIN restaurants r ON r.id = o.restaurant_id
+       JOIN dining_requests dr ON dr.id = o.dining_request_id
        WHERE o.id = $1 AND r.owner_id = $2`,
       [id, user.id],
     );
@@ -328,6 +368,13 @@ export class OffersService {
       updatedAt: row.updated_at,
       restaurantName: row.restaurant_name,
       restaurantAddress: row.restaurant_address,
+      requestTitle: row.request_title,
+      requestDiningDate: row.request_dining_date,
+      requestDiningTime: row.request_dining_time,
+      requestHeadCount: row.request_head_count,
+      requestRegion: row.request_region,
+      requestBudgetPerPerson: row.request_budget_per_person,
+      requestStatus: row.request_status,
     };
   }
 
