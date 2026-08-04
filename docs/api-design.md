@@ -16,6 +16,7 @@
 | Public | POST | `/auth/signup` | `user` 계정 회원가입. 클라이언트 역할 입력은 받지 않는다 |
 | Public | POST | `/auth/login` | 로그인과 토큰 발급 |
 | 로그인 | GET | `/auth/me` | 최신 계정 상태와 역할 조회 |
+| 로그인 | PATCH | `/auth/me` | 이름·이메일·휴대전화 수정. 연락처 변경 시 해당 인증 상태 초기화 |
 | 로그인 | POST | `/auth/logout` | 현재 세션 종료. Refresh Token 도입 시 구현 |
 | 로그인 | GET | `/owner-applications/me` | 내 사업자 신청 조회 |
 | user | POST | `/owner-applications` | 사업자 신청 제출 |

@@ -8,7 +8,7 @@ import * as bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { DbService } from "../shared/db.service";
 import { UserRole } from "./auth-user";
-import { LoginDto, SignupDto } from "./auth.dto";
+import { LoginDto, SignupDto, UpdateProfileDto } from "./auth.dto";
 import { JwtTokenService } from "./jwt-token.service";
 
 interface UserRow {
@@ -144,6 +144,71 @@ export class AuthService {
     };
   }
 
+  async updateMe(userId: string, body: UpdateProfileDto) {
+    const current = await this.findUserById(userId);
+
+    if (!current || current.status !== "active") {
+      throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
+    }
+
+    if (body.name === undefined && body.email === undefined && body.phone === undefined) {
+      throw new BadRequestException("수정할 프로필 정보를 입력해주세요.");
+    }
+
+    const name = body.name === undefined ? current.name : this.normalizeName(body.name);
+    const email = body.email === undefined ? current.email : this.normalizeEmail(body.email);
+    const phone = body.phone === undefined ? current.phone : this.normalizePhone(body.phone);
+
+    this.validateProfile(name, email, phone);
+
+    if (email !== current.email || phone !== current.phone) {
+      const conflict = await this.findProfileConflict(userId, email, phone);
+
+      if (conflict === "email") {
+        throw new ConflictException("이미 사용 중인 이메일입니다.");
+      }
+      if (conflict === "phone") {
+        throw new ConflictException("이미 사용 중인 전화번호입니다.");
+      }
+    }
+
+    try {
+      await this.dbService.query(
+        `UPDATE users
+         SET name = $1,
+             email = $2,
+             phone = $3,
+             email_verified_at = CASE
+               WHEN email IS DISTINCT FROM $2 THEN NULL
+               ELSE email_verified_at
+             END,
+             phone_verified_at = CASE
+               WHEN phone IS DISTINCT FROM $3 THEN NULL
+               ELSE phone_verified_at
+             END,
+             updated_at = NOW()
+         WHERE id = $4 AND status = 'active'`,
+        [name, email, phone, userId],
+      );
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException("이미 사용 중인 이메일 또는 전화번호입니다.");
+      }
+
+      throw error;
+    }
+
+    const updated = await this.findUserById(userId);
+
+    if (!updated) {
+      throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
+    }
+
+    return {
+      user: this.toPublicUser(updated),
+    };
+  }
+
   private normalizeEmail(email?: string) {
     return email?.trim().toLowerCase() || "";
   }
@@ -190,6 +255,20 @@ export class AuthService {
     }
   }
 
+  private validateProfile(name: string, email: string, phone: string) {
+    if (name.length < 2 || name.length > 50) {
+      throw new BadRequestException("이름은 2자 이상 50자 이하로 입력해주세요.");
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException("올바른 이메일 형식을 입력해주세요.");
+    }
+
+    if (!phone) {
+      throw new BadRequestException("올바른 휴대전화 번호를 입력해주세요.");
+    }
+  }
+
   private async findUserByEmail(email: string) {
     const result = await this.dbService.query<UserRow>(
       `${this.userSelectSql()}
@@ -217,6 +296,23 @@ export class AuthService {
        WHERE LOWER(email) = LOWER($1) OR phone = $2
        LIMIT 1`,
       [email, phone],
+    );
+    const existing = result.rows[0];
+
+    if (!existing) {
+      return null;
+    }
+
+    return existing.email.toLowerCase() === email ? "email" : "phone";
+  }
+
+  private async findProfileConflict(userId: string, email: string, phone: string) {
+    const result = await this.dbService.query<{ email: string; phone: string }>(
+      `SELECT email, phone
+       FROM users
+       WHERE id <> $1 AND (LOWER(email) = LOWER($2) OR phone = $3)
+       LIMIT 1`,
+      [userId, email, phone],
     );
     const existing = result.rows[0];
 
@@ -316,12 +412,23 @@ export class AuthService {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      maskedEmail: this.maskEmail(user.email),
+      maskedPhone: this.maskPhone(user.phone),
       status: user.status,
       emailVerified: Boolean(user.emailVerifiedAt),
       phoneVerified: Boolean(user.phoneVerifiedAt),
       role: user.role,
       roles: user.roles,
     };
+  }
+
+  private maskEmail(email: string) {
+    const [localPart, domain] = email.split("@");
+    return `${localPart.slice(0, 1)}***@${domain}`;
+  }
+
+  private maskPhone(phone: string) {
+    return phone.replace(/^(\+8210)\d{4}(\d{4})$/, "$1****$2");
   }
 
   private userSelectSql() {

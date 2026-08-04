@@ -52,6 +52,20 @@ export class LoginDto {
   password?: string;
 }
 
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ example: "홍길동", description: "변경할 회원 이름" })
+  name?: string;
+
+  @ApiPropertyOptional({ example: "user@example.com", description: "변경할 로그인 이메일" })
+  email?: string;
+
+  @ApiPropertyOptional({
+    example: "010-1234-5678",
+    description: "변경할 휴대전화 번호. 서버에서 +82 E.164 형식으로 정규화합니다.",
+  })
+  phone?: string;
+}
+
 export class PublicUserDto {
   @ApiProperty({ example: "7b3e9f6f-d630-42d8-a5c0-8d21fae3dd2e" })
   id!: string;
@@ -64,6 +78,12 @@ export class PublicUserDto {
 
   @ApiProperty({ example: "+821012345678" })
   phone!: string;
+
+  @ApiProperty({ example: "u***@example.com" })
+  maskedEmail!: string;
+
+  @ApiProperty({ example: "+8210****5678" })
+  maskedPhone!: string;
 
   @ApiProperty({ enum: ["active", "suspended", "withdrawn"], example: "active" })
   status!: string;

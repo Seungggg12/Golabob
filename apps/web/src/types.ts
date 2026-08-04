@@ -5,6 +5,8 @@ export interface PublicUser {
   name: string;
   email: string;
   phone: string;
+  maskedEmail: string;
+  maskedPhone: string;
   status: "active" | "suspended" | "withdrawn";
   emailVerified: boolean;
   phoneVerified: boolean;
