@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nest start --watch",
     "start": "node dist/main.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:status": "node scripts/migrate.js --status",
     "build": "nest build",
     "test": "node --test dist/**/*.spec.js"
   },
@@ -15,6 +17,7 @@
     "@nestjs/swagger": "^11.4.4",
     "bcryptjs": "^3.0.3",
     "dotenv": "^16.5.0",
+    "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.23",
+    "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.34",
     "@types/pg": "^8.15.4",

@@ -35,6 +35,7 @@ import {
   OfferSelectionResponse,
   PublicUser,
   Reservation,
+  UpdateProfileInput,
   UserRole,
 } from "./types";
 
@@ -132,8 +133,13 @@ function App() {
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
   const [accessToken, setAccessToken] = useState(readStoredAccessToken);
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
+  const [name, setName] = useState("홍길동");
   const [email, setEmail] = useState("user@example.com");
+  const [phone, setPhone] = useState("010-1234-5678");
   const [password, setPassword] = useState("password1234");
+  const [serviceTerms, setServiceTerms] = useState(false);
+  const [privacyPolicy, setPrivacyPolicy] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [rememberLogin, setRememberLogin] = useState(
     () => Boolean(localStorage.getItem(accessTokenKey)),
   );
@@ -181,7 +187,7 @@ function App() {
     const roleLabels = getServiceRoles(currentUser).map((userRole) =>
       userRole === "owner" ? "사장님" : "예약자",
     );
-    return `${currentUser.email} / ${roleLabels.join(", ")}`;
+    return `${currentUser.name} (${currentUser.email}) / ${roleLabels.join(", ")}`;
   }, [currentUser]);
 
   const resetDataState = () => {
@@ -443,7 +449,19 @@ function App() {
 
     try {
       const path = authMode === "login" ? "/api/auth/login" : "/api/auth/signup";
-      const payload = authMode === "login" ? { email, password } : { email, password, role };
+      const payload = authMode === "login"
+        ? { email, password }
+        : {
+            name,
+            email,
+            phone,
+            password,
+            agreements: {
+              serviceTerms,
+              privacyPolicy,
+              marketingConsent,
+            },
+          };
       const body = await requestJson<AuthResponse>(
         path,
         {
@@ -507,6 +525,34 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const updateProfile = async (input: UpdateProfileInput) => {
+    const body = await requestJson<{ user: PublicUser }>("/api/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+
+    setCurrentUser(body.user);
+    setMessage("프로필을 저장했습니다.");
+    return body.user;
+  };
+
+  const activateOwnerRole = async () => {
+    const body = await requestJson<AuthResponse>("/api/auth/owner-role", {
+      method: "POST",
+    });
+    const persistent = Boolean(localStorage.getItem(accessTokenKey)) || rememberLogin;
+
+    storeAccessToken(body.accessToken, persistent);
+    setAccessToken(body.accessToken);
+    setCurrentUser(body.user);
+    setRole("owner");
+    localStorage.setItem(activeRoleKey, "owner");
+    localStorage.setItem(activeRoleUserKey, body.user.id);
+    resetDataState();
+    setMessage("사장님 모드가 활성화되었습니다.");
+    setScreen("ownerHome");
   };
 
   const createDiningRequest = async (input: CreateDiningRequestInput) => {
@@ -628,17 +674,25 @@ function App() {
       authMode={authMode}
       email={email}
       fetchMe={fetchMe}
+      marketingConsent={marketingConsent}
       isLoading={isLoading}
       message={message}
+      name={name}
       password={password}
+      phone={phone}
+      privacyPolicy={privacyPolicy}
       rememberLogin={rememberLogin}
-      role={role}
+      serviceTerms={serviceTerms}
       setApiBaseUrl={setApiBaseUrl}
       setAuthMode={setAuthMode}
       setEmail={setEmail}
+      setMarketingConsent={setMarketingConsent}
+      setName={setName}
       setPassword={setPassword}
+      setPhone={setPhone}
+      setPrivacyPolicy={setPrivacyPolicy}
       setRememberLogin={setRememberLogin}
-      setRole={setRole}
+      setServiceTerms={setServiceTerms}
       submitAuth={submitAuth}
       submitText={submitText}
       title={title}
@@ -851,7 +905,14 @@ function App() {
           <OwnerReservations onNavigate={navigate} requestJson={requestJson} />
         ) : null}
         {activeScreen === "myPage" ? (
-          <MyPage userLabel={userLabel} role={activeRole} onNavigate={navigate} />
+          <MyPage
+            user={currentUser}
+            role={activeRole}
+            onNavigate={navigate}
+            onLogout={logout}
+            onActivateOwnerRole={activateOwnerRole}
+            onUpdateProfile={updateProfile}
+          />
         ) : null}
       </main>
       <BottomNav active={activeScreen} role={activeRole} onNavigate={navigate} />
