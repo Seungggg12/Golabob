@@ -21,7 +21,7 @@ export function BottomNav({
       : [
           { icon: "home", label: "홈", screen: "userHome" },
           { icon: "edit_calendar", label: "요청", screen: "createRequest" },
-          { icon: "event_available", label: "예약", screen: "confirmation" },
+          { icon: "event_available", label: "예약", screen: "restaurantList" },
           { icon: "calendar_month", label: "내 예약", screen: "myReservation" },
           { icon: "person", label: "마이", screen: "myPage" },
         ];
