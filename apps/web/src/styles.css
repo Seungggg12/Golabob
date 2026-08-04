@@ -1239,6 +1239,48 @@ dd {
   gap: 14px;
 }
 
+.request-canceled-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgba(165, 59, 34, 0.25);
+  border-radius: 10px;
+  padding: 16px;
+  background: rgba(165, 59, 34, 0.08);
+  color: var(--secondary);
+}
+
+.request-canceled-card .material-symbols-outlined {
+  font-size: 30px;
+}
+
+.request-canceled-card strong,
+.request-canceled-card p {
+  display: block;
+}
+
+.request-canceled-card p {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.request-waiting-actions {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.35fr) minmax(240px, 1fr);
+  gap: 12px;
+}
+
+.request-cancel-button {
+  border-color: var(--secondary);
+  color: var(--secondary);
+}
+
+@media (max-width: 720px) {
+  .request-waiting-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .compact-offer-card {
   display: grid;
   grid-template-columns: 96px 1fr;
