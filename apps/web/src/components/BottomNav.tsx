@@ -14,14 +14,14 @@ export function BottomNav({
       ? [
           { icon: "home", label: "홈", screen: "ownerHome" },
           { icon: "request_page", label: "요청", screen: "ownerHome" },
-          { icon: "local_offer", label: "오퍼", screen: "createOffer" },
+          { icon: "local_offer", label: "오퍼", screen: "ownerOffers" },
           { icon: "calendar_month", label: "예약", screen: "ownerReservations" },
           { icon: "person", label: "마이", screen: "myPage" },
         ]
       : [
           { icon: "home", label: "홈", screen: "userHome" },
           { icon: "edit_calendar", label: "요청", screen: "createRequest" },
-          { icon: "event_available", label: "예약", screen: "confirmation" },
+          { icon: "event_available", label: "예약", screen: "restaurantList" },
           { icon: "calendar_month", label: "내 예약", screen: "myReservation" },
           { icon: "person", label: "마이", screen: "myPage" },
         ];

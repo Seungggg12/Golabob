@@ -69,7 +69,7 @@ export function MyPage({
           icon: "local_offer",
           label: "보낸 오퍼",
           description: "회식 요청에 보낸 제안 확인",
-          screen: "ownerHome",
+          screen: "ownerOffers",
         },
       ]
     : [
