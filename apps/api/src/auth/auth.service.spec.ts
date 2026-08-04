@@ -265,4 +265,89 @@ describe("AuthService", () => {
 
     await assert.rejects(service.updateMe("user-id", {}), BadRequestException);
   });
+
+  it("사장님 전환 신청 시 owner 역할을 추가하고 갱신된 토큰을 발급한다", async () => {
+    let hasOwnerRole = false;
+    const calls: string[] = [];
+    const client = {
+      query: async (sql: string) => {
+        calls.push(sql);
+
+        if (sql.includes("INSERT INTO user_roles")) {
+          hasOwnerRole = true;
+          return { rows: [] };
+        }
+
+        return {
+          rows: [
+            {
+              id: "user-id",
+              name: "홍길동",
+              email: "user@example.com",
+              phone: "+821012345678",
+              password_hash: "hashed-password",
+              role: "user",
+              roles: hasOwnerRole ? ["user", "owner"] : ["user"],
+              status: "active",
+              email_verified_at: null,
+              phone_verified_at: null,
+              created_at: new Date("2026-08-01T00:00:00Z"),
+              updated_at: new Date("2026-08-01T00:00:00Z"),
+            },
+          ],
+        };
+      },
+    };
+    const dbService = {
+      transaction: async (work: (transactionClient: typeof client) => Promise<unknown>) =>
+        work(client),
+    } as unknown as DbService;
+    const tokenService = new JwtTokenService();
+    const service = new AuthService(dbService, tokenService);
+
+    const result = await service.activateOwnerRole("user-id");
+    const tokenUser = tokenService.verifyAccessToken(result.accessToken);
+
+    assert.deepEqual(result.user.roles, ["user", "owner"]);
+    assert.deepEqual(tokenUser.roles, ["user", "owner"]);
+    assert.ok(calls.some((sql) => sql.includes("ON CONFLICT (user_id, role) DO NOTHING")));
+  });
+
+  it("정지 계정의 사장님 전환 신청을 거부한다", async () => {
+    let roleInsertAttempted = false;
+    const client = {
+      query: async (sql: string) => {
+        if (sql.includes("INSERT INTO user_roles")) {
+          roleInsertAttempted = true;
+        }
+
+        return {
+          rows: [
+            {
+              id: "user-id",
+              name: "홍길동",
+              email: "user@example.com",
+              phone: "+821012345678",
+              password_hash: "hashed-password",
+              role: "user",
+              roles: ["user"],
+              status: "suspended",
+              email_verified_at: null,
+              phone_verified_at: null,
+              created_at: new Date("2026-08-01T00:00:00Z"),
+              updated_at: new Date("2026-08-01T00:00:00Z"),
+            },
+          ],
+        };
+      },
+    };
+    const dbService = {
+      transaction: async (work: (transactionClient: typeof client) => Promise<unknown>) =>
+        work(client),
+    } as unknown as DbService;
+    const service = new AuthService(dbService, new JwtTokenService());
+
+    await assert.rejects(service.activateOwnerRole("user-id"), UnauthorizedException);
+    assert.equal(roleInsertAttempted, false);
+  });
 });

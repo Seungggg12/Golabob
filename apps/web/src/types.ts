@@ -19,6 +19,12 @@ export interface AuthResponse {
   accessToken: string;
 }
 
+export interface UpdateProfileInput {
+  name: string;
+  email: string;
+  phone: string;
+}
+
 export interface DiningRequest {
   id: number;
   userId: string;

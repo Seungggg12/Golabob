@@ -33,6 +33,7 @@ import {
   OfferSelectionResponse,
   PublicUser,
   Reservation,
+  UpdateProfileInput,
   UserRole,
 } from "./types";
 
@@ -491,6 +492,34 @@ function App() {
     }
   };
 
+  const updateProfile = async (input: UpdateProfileInput) => {
+    const body = await requestJson<{ user: PublicUser }>("/api/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+
+    setCurrentUser(body.user);
+    setMessage("프로필을 저장했습니다.");
+    return body.user;
+  };
+
+  const activateOwnerRole = async () => {
+    const body = await requestJson<AuthResponse>("/api/auth/owner-role", {
+      method: "POST",
+    });
+    const persistent = Boolean(localStorage.getItem(accessTokenKey)) || rememberLogin;
+
+    storeAccessToken(body.accessToken, persistent);
+    setAccessToken(body.accessToken);
+    setCurrentUser(body.user);
+    setRole("owner");
+    localStorage.setItem(activeRoleKey, "owner");
+    localStorage.setItem(activeRoleUserKey, body.user.id);
+    resetDataState();
+    setMessage("사장님 모드가 활성화되었습니다.");
+    setScreen("ownerHome");
+  };
+
   const createDiningRequest = async (input: CreateDiningRequestInput) => {
     setIsLoading(true);
     setDataMessage("");
@@ -793,7 +822,14 @@ function App() {
           <OwnerReservations onNavigate={navigate} requestJson={requestJson} />
         ) : null}
         {activeScreen === "myPage" ? (
-          <MyPage userLabel={userLabel} role={activeRole} onNavigate={navigate} />
+          <MyPage
+            user={currentUser}
+            role={activeRole}
+            onNavigate={navigate}
+            onLogout={logout}
+            onActivateOwnerRole={activateOwnerRole}
+            onUpdateProfile={updateProfile}
+          />
         ) : null}
       </main>
       <BottomNav active={activeScreen} role={activeRole} onNavigate={navigate} />

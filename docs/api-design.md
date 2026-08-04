@@ -17,13 +17,14 @@
 | Public | POST | `/auth/login` | 로그인과 토큰 발급 |
 | 로그인 | GET | `/auth/me` | 최신 계정 상태와 역할 조회 |
 | 로그인 | PATCH | `/auth/me` | 이름·이메일·휴대전화 수정. 연락처 변경 시 해당 인증 상태 초기화 |
+| user | POST | `/auth/owner-role` | `owner` 역할을 멱등하게 즉시 추가하고 갱신된 액세스 토큰 발급 |
 | 로그인 | POST | `/auth/logout` | 현재 세션 종료. Refresh Token 도입 시 구현 |
-| 로그인 | GET | `/owner-applications/me` | 내 사업자 신청 조회 |
-| user | POST | `/owner-applications` | 사업자 신청 제출 |
-| user | PATCH | `/owner-applications/:id/withdraw` | pending 신청 철회 |
-| admin | GET | `/admin/owner-applications` | 상태별 신청 목록 조회 |
-| admin | PATCH | `/admin/owner-applications/:id/approve` | 신청 승인과 owner 역할 부여 |
-| admin | PATCH | `/admin/owner-applications/:id/reject` | 사유를 포함한 신청 반려 |
+| 로그인 | GET | `/owner-applications/me` | 후속: 내 사업자 신청 조회 |
+| user | POST | `/owner-applications` | 후속: 사업자 신청 제출 |
+| user | PATCH | `/owner-applications/:id/withdraw` | 후속: pending 신청 철회 |
+| admin | GET | `/admin/owner-applications` | 후속: 상태별 신청 목록 조회 |
+| admin | PATCH | `/admin/owner-applications/:id/approve` | 후속: 신청 승인과 owner 역할 부여 |
+| admin | PATCH | `/admin/owner-applications/:id/reject` | 후속: 사유를 포함한 신청 반려 |
 
 `POST /auth/signup` 요청 예시:
 
@@ -43,7 +44,7 @@
 
 서버는 휴대전화 번호를 `+82` E.164 형식으로 정규화한다. 서비스 이용약관과 개인정보 수집 및 이용 동의가 모두 `true`가 아니면 회원가입을 거부하며, 계정과 기본 `user` 역할 및 활성 약관 버전별 동의를 하나의 트랜잭션으로 저장한다.
 
-사업자 승인 API는 신청 행 잠금, 상태 변경, 역할 추가, 이력 생성을 한 트랜잭션으로 처리한다.
+현재 MVP의 사장님 전환 API는 활성 계정 행을 잠근 뒤 `user_roles.owner`를 중복 없이 추가하고, 새 역할이 포함된 액세스 토큰을 반환한다. 사업자 승인 API를 도입할 때는 신청 행 잠금, 상태 변경, 역할 추가와 이력 생성을 한 트랜잭션으로 처리한다.
 
 ## 3. 식당
 
@@ -166,7 +167,7 @@
 
 | 현재 | 목표 |
 | --- | --- |
-| 회원가입 요청이 owner 역할을 직접 받을 수 있음 | 회원가입은 user 고정, owner는 관리자 승인으로 부여 |
+| 회원가입 요청이 owner 역할을 직접 받을 수 있음 | 회원가입은 user 고정, 현재 MVP에서는 로그인 후 `/auth/owner-role` 요청으로 owner를 즉시 추가 |
 | 식당이 기본 approved로 생성됨 | pending 생성 후 관리자 승인 |
 | 요청 수정 API 없음 | 오퍼 도착 전 조건부 수정 API 추가 |
 | 오퍼 수정·취소·선택 API 없음 | 상태 규칙을 적용한 API 추가 |

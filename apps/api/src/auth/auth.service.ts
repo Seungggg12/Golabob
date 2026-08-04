@@ -209,6 +209,46 @@ export class AuthService {
     };
   }
 
+  async activateOwnerRole(userId: string) {
+    const user = await this.dbService.transaction(async (client) => {
+      const currentResult = await client.query<UserRow>(
+        `${this.userSelectSql()}
+         WHERE u.id = $1
+         FOR UPDATE`,
+        [userId],
+      );
+      const current = currentResult.rows[0];
+
+      if (!current || current.status !== "active") {
+        throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
+      }
+
+      await client.query(
+        `INSERT INTO user_roles (user_id, role)
+         VALUES ($1, 'owner')
+         ON CONFLICT (user_id, role) DO NOTHING`,
+        [userId],
+      );
+
+      const updatedResult = await client.query<UserRow>(
+        `${this.userSelectSql()}
+         WHERE u.id = $1`,
+        [userId],
+      );
+
+      if (!updatedResult.rows[0]) {
+        throw new UnauthorizedException("유효하지 않은 인증 정보입니다.");
+      }
+
+      return this.mapUser(updatedResult.rows[0]);
+    });
+
+    return {
+      user: this.toPublicUser(user),
+      accessToken: this.jwtTokenService.createAccessToken(user),
+    };
+  }
+
   private normalizeEmail(email?: string) {
     return email?.trim().toLowerCase() || "";
   }

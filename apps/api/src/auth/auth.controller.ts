@@ -75,4 +75,14 @@ export class AuthController {
   updateMe(@CurrentUser() user: AuthUser, @Body() body: UpdateProfileDto) {
     return this.authService.updateMe(user.id, body);
   }
+
+  @ApiOperation({ summary: "사장님 역할 즉시 활성화" })
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({ description: "인증이 필요합니다." })
+  @UseGuards(JwtAuthGuard)
+  @Post("owner-role")
+  activateOwnerRole(@CurrentUser() user: AuthUser) {
+    return this.authService.activateOwnerRole(user.id);
+  }
 }
