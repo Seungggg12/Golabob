@@ -527,6 +527,35 @@ function App() {
     }
   };
 
+  const cancelDiningRequest = async () => {
+    if (!selectedRequest || selectedRequest.status !== "open") {
+      return;
+    }
+
+    if (!window.confirm(`「${selectedRequest.title}」 요청을 취소하시겠습니까?`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    setDataMessage("");
+    try {
+      const canceledRequest = await requestJson<DiningRequest>(
+        `/api/dining-requests/${selectedRequest.id}/cancel`,
+        { method: "PATCH" },
+      );
+      setSelectedRequest(canceledRequest);
+      setMyRequests((current) =>
+        current.map((request) =>
+          request.id === canceledRequest.id ? canceledRequest : request,
+        ),
+      );
+    } catch (error) {
+      setDataMessage(error instanceof Error ? error.message : "요청 취소에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const createOffer = async (input: CreateOfferInput) => {
     if (!selectedRequest) {
       return;
@@ -707,6 +736,7 @@ function App() {
             message={dataMessage}
             onNavigate={navigate}
             onRefresh={() => void loadOffers()}
+            onCancel={() => void cancelDiningRequest()}
           />
         ) : null}
         {activeScreen === "offers" ? (
