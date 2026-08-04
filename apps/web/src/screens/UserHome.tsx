@@ -8,6 +8,18 @@ export function UserHome({ requests, isLoading, message, onNavigate, onSelect }:
   return <>
     <section className="welcome-section"><h1>오늘의 회식 장소를 찾아보세요!</h1><p>조건을 등록하면 식당의 맞춤 오퍼를 받을 수 있어요.</p></section>
     <section className="cta-card"><span>NEW REQUEST</span><h2>회식 요청 등록하기</h2><p>장소, 인원, 예산을 알려주세요.</p><button type="button" onClick={() => onNavigate("createRequest")}>시작하기</button></section>
+    <section className="cta-card">
+      <span>GENERAL RESERVATION</span>
+        <h2>일반 예약하기</h2>
+        <p>등록된 식당을 확인하고 바로 예약해보세요.</p>
+
+        <button
+          type="button"
+          onClick={() => onNavigate("restaurantList")}
+        >
+          식당 둘러보기
+        </button>
+    </section>
     <SectionHeader title="나의 요청 현황" action={`${requests.length}건`} />
     {isLoading ? <p className="data-state">불러오는 중...</p> : null}
     {message ? <p className="data-state error">{message}</p> : null}

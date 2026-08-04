@@ -14,6 +14,13 @@ import { RequestWaiting } from "./screens/RequestWaiting";
 import { RoleSelection } from "./screens/RoleSelection";
 import { SplashOnboarding } from "./screens/SplashOnboarding";
 import { UserHome } from "./screens/UserHome";
+import MyReservation from "./screens/MyReservation";
+import MyRestaurants from "./screens/MyRestaurants";
+import OwnerReservations from "./screens/OwnerReservations";
+import RestaurantDetail from "./screens/RestaurantDetail";
+import RestaurantList, { Restaurant } from "./screens/RestaurantList";
+import RestaurantRegister from "./screens/RestaurantRegister";
+import { WriteReview } from "./screens/WriteReview";
 import {
   AppScreen,
   AuthMode,
@@ -23,7 +30,9 @@ import {
   DiningRequest,
   Offer,
   OfferRestaurant,
+  OfferSelectionResponse,
   PublicUser,
+  Reservation,
   UserRole,
 } from "./types";
 
@@ -37,12 +46,19 @@ const userScreens = new Set<AppScreen>([
   "requestWaiting",
   "offers",
   "confirmation",
+  "restaurantList",
+  "restaurantDetail",
+  "myReservation",
+  "writeReview",
   "myPage",
 ]);
 const ownerScreens = new Set<AppScreen>([
   "ownerHome",
   "ownerRequestDetail",
   "createOffer",
+  "restaurantRegister",
+  "myRestaurants",
+  "ownerReservations",
   "myPage",
 ]);
 
@@ -132,6 +148,23 @@ function App() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [offerRestaurants, setOfferRestaurants] = useState<OfferRestaurant[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<DiningRequest | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [confirmedReservation, setConfirmedReservation] = useState<Reservation | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  const [reviewReservation, setReviewReservation] = useState({
+    reservationId: "",
+    restaurantId: "",
+    restaurantName: "",
+  });
+
+  const handleWriteReview = (
+    reservationId: string,
+    restaurantId: string,
+    restaurantName: string,
+  ) => {
+    setReviewReservation({ reservationId, restaurantId, restaurantName });
+    setScreen("writeReview");
+  };
 
   const title = authMode === "login" ? "다시 만나서 반가워요" : "골라밥 시작하기";
   const submitText = authMode === "login" ? "로그인" : "회원가입";
@@ -153,6 +186,8 @@ function App() {
     setOffers([]);
     setOfferRestaurants([]);
     setSelectedRequest(null);
+    setSelectedOffer(null);
+    setConfirmedReservation(null);
     setDataMessage("");
   };
 
@@ -477,6 +512,29 @@ function App() {
     }
   };
 
+  const selectOffer = async (offer: Offer) => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    setIsLoading(true);
+    setDataMessage("");
+    try {
+      const result = await requestJson<OfferSelectionResponse>(
+        `/api/dining-requests/${selectedRequest.id}/offers/${offer.id}/select`,
+        { method: "POST" },
+      );
+      setSelectedOffer(result.offer);
+      setConfirmedReservation(result.reservation);
+      setSelectedRequest({ ...selectedRequest, status: "reserved" });
+      setScreen("confirmation");
+    } catch (error) {
+      setDataMessage(error instanceof Error ? error.message : "오퍼 선택에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = () => {
     clearSession("로그아웃했습니다.", "splash");
   };
@@ -620,12 +678,19 @@ function App() {
           <OfferComparison
             request={selectedRequest}
             offers={offers}
+            isLoading={isLoading}
             message={dataMessage}
             onNavigate={navigate}
+            onSelect={selectOffer}
           />
         ) : null}
         {activeScreen === "confirmation" ? (
-          <ReservationConfirmation onNavigate={navigate} />
+          <ReservationConfirmation
+            request={selectedRequest}
+            offer={selectedOffer}
+            reservation={confirmedReservation}
+            onNavigate={navigate}
+          />
         ) : null}
         {activeScreen === "ownerHome" ? (
           <OwnerHome
@@ -633,6 +698,8 @@ function App() {
             offerCount={ownerOffers.length}
             isLoading={isLoading}
             message={dataMessage}
+            onNavigate={navigate}
+            requestJson={requestJson}
             onSelect={(request) => {
               setSelectedRequest(request);
               setScreen("ownerRequestDetail");
@@ -651,6 +718,54 @@ function App() {
             onNavigate={navigate}
             onSubmit={createOffer}
           />
+        ) : null}
+        {activeScreen === "restaurantRegister" ? (
+          <RestaurantRegister
+            onNavigate={navigate}
+            selectedRestaurant={selectedRestaurant}
+            onClearSelectedRestaurant={() => setSelectedRestaurant(null)}
+            requestJson={requestJson}
+          />
+        ) : null}
+        {activeScreen === "restaurantList" ? (
+          <RestaurantList
+            onNavigate={navigate}
+            onSelectRestaurant={setSelectedRestaurant}
+            requestJson={requestJson}
+          />
+        ) : null}
+        {activeScreen === "restaurantDetail" ? (
+          <RestaurantDetail
+            onNavigate={navigate}
+            restaurant={selectedRestaurant}
+            requestJson={requestJson}
+          />
+        ) : null}
+        {activeScreen === "myRestaurants" ? (
+          <MyRestaurants
+            onNavigate={navigate}
+            onSelectRestaurant={setSelectedRestaurant}
+            requestJson={requestJson}
+          />
+        ) : null}
+        {activeScreen === "myReservation" ? (
+          <MyReservation
+            onNavigate={navigate}
+            onWriteReview={handleWriteReview}
+            requestJson={requestJson}
+          />
+        ) : null}
+        {activeScreen === "writeReview" ? (
+          <WriteReview
+            reservationId={reviewReservation.reservationId}
+            restaurantId={reviewReservation.restaurantId}
+            restaurantName={reviewReservation.restaurantName}
+            onNavigate={navigate}
+            requestJson={requestJson}
+          />
+        ) : null}
+        {activeScreen === "ownerReservations" ? (
+          <OwnerReservations onNavigate={navigate} requestJson={requestJson} />
         ) : null}
         {activeScreen === "myPage" ? (
           <MyPage userLabel={userLabel} role={activeRole} onNavigate={navigate} />

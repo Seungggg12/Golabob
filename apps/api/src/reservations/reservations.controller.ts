@@ -65,4 +65,20 @@ export class ReservationsController {
   findForOwner(@CurrentUser() user: AuthUser) {
     return this.reservationsService.findForOwner(user);
   }
+
+  @ApiOperation({ summary: "사장 예약 확정", description: "사장이 본인 식당에 들어온 예약 요청을 확정합니다." })
+  @ApiParam({ name: "id", example: "예약 UUID", description: "확정할 예약 id" })
+  @Roles("owner")
+  @Patch("owner/reservations/:id/confirm")
+  confirmForOwner(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.reservationsService.confirmForOwner(user, id);
+  }
+
+  @ApiOperation({ summary: "사장 예약 거절", description: "사장이 본인 식당에 들어온 예약 요청을 거절합니다." })
+  @ApiParam({ name: "id", example: "예약 UUID", description: "거절할 예약 id" })
+  @Roles("owner")
+  @Patch("owner/reservations/:id/reject")
+  rejectForOwner(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.reservationsService.rejectForOwner(user, id);
+  }
 }

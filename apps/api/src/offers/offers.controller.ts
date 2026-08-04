@@ -76,4 +76,21 @@ export class OffersController {
   ) {
     return this.offersService.findOffersForMyDiningRequest(user, requestId);
   }
+
+  @ApiOperation({
+    summary: "오퍼 선택 및 예약 확정",
+    description: "사용자가 본인의 열린 회식 요청에 도착한 오퍼를 선택하고 예약을 확정합니다.",
+  })
+  @ApiParam({ name: "requestId", example: "1", description: "내 회식 요청 id" })
+  @ApiParam({ name: "offerId", example: "1", description: "선택할 오퍼 id" })
+  @ApiResponse({ status: 201, description: "오퍼 선택 및 예약 확정 완료" })
+  @Roles("user")
+  @Post("dining-requests/:requestId/offers/:offerId/select")
+  selectOffer(
+    @CurrentUser() user: AuthUser,
+    @Param("requestId") requestId: string,
+    @Param("offerId") offerId: string,
+  ) {
+    return this.offersService.selectOffer(user, requestId, offerId);
+  }
 }

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { Pool, QueryResult, QueryResultRow } from "pg";
+import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 const REQUIRED_SCHEMA_VERSION = "202607280001_initial_schema";
 
@@ -28,6 +28,22 @@ export class DbService implements OnModuleDestroy {
     return this.getPool().query<T>(text, params);
   }
 
+  async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.getPool().connect();
+
+    try {
+      await client.query("BEGIN");
+      const result = await work(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async init() {
     await this.query("SELECT 1");
 
@@ -37,7 +53,7 @@ export class DbService implements OnModuleDestroy {
 
     if (!tableResult.rows[0]?.table_name) {
       throw new Error(
-        "DB 마이그레이션이 적용되지 않았습니다. `npm run migrate:api`를 먼저 실행해주세요.",
+        "DB 스키마가 초기화되지 않았습니다. `npm run migrate:api`를 먼저 실행해주세요.",
       );
     }
 
@@ -48,7 +64,7 @@ export class DbService implements OnModuleDestroy {
 
     if (!versionResult.rows[0]) {
       throw new Error(
-        `필수 DB 마이그레이션(${REQUIRED_SCHEMA_VERSION})이 없습니다. ` +
+        `필수 DB 스키마(${REQUIRED_SCHEMA_VERSION})가 없습니다. ` +
           "`npm run migrate:api`를 먼저 실행해주세요.",
       );
     }

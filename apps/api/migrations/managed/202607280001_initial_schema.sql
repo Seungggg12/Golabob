@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS restaurants (
   owner_id TEXT NOT NULL,
   name TEXT NOT NULL,
   address TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  image_url TEXT,
   category TEXT NOT NULL,
   description TEXT,
   max_capacity INTEGER NOT NULL CHECK (max_capacity > 0),
@@ -99,12 +101,14 @@ CREATE TABLE IF NOT EXISTS reservations (
   id UUID PRIMARY KEY,
   user_id TEXT NOT NULL,
   restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  dining_request_id BIGINT REFERENCES dining_requests(id) ON DELETE SET NULL,
+  offer_id BIGINT REFERENCES offers(id) ON DELETE SET NULL,
   reservation_date DATE NOT NULL,
   reservation_time TIME NOT NULL,
   head_count INTEGER NOT NULL CHECK (head_count > 0),
   request_memo TEXT,
   status TEXT NOT NULL DEFAULT 'confirmed'
-    CHECK (status IN ('confirmed', 'completed', 'canceled')),
+    CHECK (status IN ('pending', 'confirmed', 'rejected', 'completed', 'canceled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -114,6 +118,14 @@ ON reservations(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_reservations_restaurant_id
 ON reservations(restaurant_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reservations_dining_request_id
+ON reservations(dining_request_id)
+WHERE dining_request_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reservations_offer_id
+ON reservations(offer_id)
+WHERE offer_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS reviews (
   id UUID PRIMARY KEY,
@@ -144,6 +156,8 @@ BEGIN
       ('users', 'id', 'uuid'),
       ('restaurants', 'id', 'uuid'),
       ('restaurants', 'owner_id', 'text'),
+      ('restaurants', 'phone', 'text'),
+      ('restaurants', 'image_url', 'text'),
       ('dining_requests', 'id', 'bigint'),
       ('dining_requests', 'user_id', 'text'),
       ('offers', 'id', 'bigint'),
@@ -151,6 +165,8 @@ BEGIN
       ('offers', 'restaurant_id', 'uuid'),
       ('reservations', 'id', 'uuid'),
       ('reservations', 'user_id', 'text'),
+      ('reservations', 'dining_request_id', 'bigint'),
+      ('reservations', 'offer_id', 'bigint'),
       ('reviews', 'id', 'uuid'),
       ('reviews', 'user_id', 'text')
   ) AS expected(table_name, column_name, data_type)
@@ -161,7 +177,7 @@ BEGIN
   WHERE actual.data_type IS DISTINCT FROM expected.data_type;
 
   IF mismatch_count > 0 THEN
-    RAISE EXCEPTION 'Existing schema does not match the baseline (% mismatches)', mismatch_count;
+    RAISE EXCEPTION 'Existing schema does not match the initial schema (% mismatches)', mismatch_count;
   END IF;
 END
 $$;

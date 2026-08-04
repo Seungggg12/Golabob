@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { AuthUser } from "../auth/auth-user";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -57,5 +57,14 @@ export class RestaurantsController {
     @Body() dto: UpdateRestaurantDto,
   ) {
     return this.restaurantsService.updateMine(user, id, dto);
+  }
+
+  @ApiOperation({ summary: "내 식당 삭제", description: "사장이 본인이 등록한 식당을 삭제합니다." })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("owner")
+  @Delete("owner/restaurants/:id")
+  removeMine(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.restaurantsService.removeMine(user, id);
   }
 }

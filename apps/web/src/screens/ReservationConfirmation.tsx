@@ -1,7 +1,27 @@
 import { Stepper } from "../components/Stepper";
-import { Navigate } from "../types";
+import { DiningRequest, Navigate, Offer, Reservation } from "../types";
 
-export function ReservationConfirmation({ onNavigate }: { onNavigate: Navigate }) {
+interface Props {
+  request: DiningRequest | null;
+  offer: Offer | null;
+  reservation: Reservation | null;
+  onNavigate: Navigate;
+}
+
+export function ReservationConfirmation({ request, offer, reservation, onNavigate }: Props) {
+  if (!request || !offer || !reservation) {
+    return (
+      <section className="empty-state">
+        <h1>확정된 예약 정보가 없습니다.</h1>
+        <button type="button" onClick={() => onNavigate("userHome")}>내 요청으로 돌아가기</button>
+      </section>
+    );
+  }
+
+  const benefit = [offer.serviceDescription, offer.seatDescription]
+    .filter(Boolean)
+    .join(", ") || "추가 혜택 없음";
+
   return (
     <section className="confirmation-page">
       <Stepper current={2} labels={["요청", "확정", "완료"]} />
@@ -12,31 +32,28 @@ export function ReservationConfirmation({ onNavigate }: { onNavigate: Navigate }
           </span>
           예약 확정
         </span>
-        <h1>참숯구이 전문점</h1>
-        <p>12월 24일 오후 7:00 · 15명 · 강남역 350m</p>
+        <h1>{offer.restaurantName || `식당 #${offer.restaurantId}`}</h1>
+        <p>{reservation.reservationDate} {reservation.reservationTime} · {reservation.headCount}명 · {request.region}</p>
         <dl className="receipt-list">
           <div>
+            <dt>예약 번호</dt>
+            <dd>{reservation.id}</dd>
+          </div>
+          <div>
             <dt>1인 제안 가격</dt>
-            <dd>45,000원</dd>
+            <dd>{offer.pricePerPerson.toLocaleString()}원</dd>
           </div>
           <div>
             <dt>예상 총 금액</dt>
-            <dd>675,000원</dd>
+            <dd>{(offer.pricePerPerson * reservation.headCount).toLocaleString()}원</dd>
           </div>
           <div>
             <dt>포함 혜택</dt>
-            <dd>소주 2병 서비스, 프라이빗 룸</dd>
+            <dd>{benefit}</dd>
           </div>
         </dl>
-        <label>
-          예약자 연락처
-          <input placeholder="010-0000-0000" />
-        </label>
         <button className="wide-primary" type="button" onClick={() => onNavigate("userHome")}>
-          예약 확정하기
-        </button>
-        <button className="wide-secondary" type="button" onClick={() => onNavigate("offers")}>
-          다른 오퍼 보기
+          내 요청으로 돌아가기
         </button>
       </div>
     </section>
