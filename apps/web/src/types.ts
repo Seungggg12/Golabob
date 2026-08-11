@@ -1,5 +1,3 @@
-import { FormEvent } from "react";
-
 export interface PublicUser {
   id: string;
   name: string;
@@ -17,6 +15,15 @@ export interface PublicUser {
 export interface AuthResponse {
   user: PublicUser;
   accessToken: string;
+}
+
+export interface AuthFieldErrors {
+  agreements?: string;
+  email?: string;
+  name?: string;
+  password?: string;
+  passwordConfirmation?: string;
+  phone?: string;
 }
 
 export interface UpdateProfileInput {
@@ -143,35 +150,3 @@ export type AppScreen =
 
 
 export type Navigate = (screen: AppScreen) => void;
-
-export interface AuthScreenProps {
-  apiBaseUrl: string;
-  authMode: AuthMode;
-  email: string;
-  fetchMe: () => void;
-  marketingConsent: boolean;
-  isLoading: boolean;
-  message: string;
-  name: string;
-  password: string;
-  phone: string;
-  privacyPolicy: boolean;
-  rememberLogin: boolean;
-  serviceTerms: boolean;
-  setApiBaseUrl: (value: string) => void;
-  setAuthMode: (value: AuthMode) => void;
-  setEmail: (value: string) => void;
-  setMarketingConsent: (value: boolean) => void;
-  setName: (value: string) => void;
-  setPassword: (value: string) => void;
-  setPhone: (value: string) => void;
-  setPrivacyPolicy: (value: boolean) => void;
-  setRememberLogin: (value: boolean) => void;
-  setServiceTerms: (value: boolean) => void;
-  submitAuth: (event: FormEvent) => void;
-  submitText: string;
-  title: string;
-  userLabel: string;
-  onBack: () => void;
-  onLogout: () => void;
-}
