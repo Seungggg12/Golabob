@@ -10,6 +10,14 @@ const advisoryLockId = 748193523;
 
 config({ path: path.resolve(__dirname, "../.env") });
 
+function normalizeMigrationSql(sql) {
+  return sql.replace(/\r\n?/g, "\n");
+}
+
+function calculateMigrationChecksum(sql) {
+  return createHash("sha256").update(normalizeMigrationSql(sql)).digest("hex");
+}
+
 async function loadMigrations() {
   const fileNames = (await readdir(migrationsDirectory))
     .filter((fileName) => migrationFilePattern.test(fileName))
@@ -27,7 +35,7 @@ async function loadMigrations() {
         version: fileName.replace(/\.sql$/, ""),
         fileName,
         sql,
-        checksum: createHash("sha256").update(sql).digest("hex"),
+        checksum: calculateMigrationChecksum(sql),
       };
     }),
   );
@@ -140,7 +148,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  calculateMigrationChecksum,
+  normalizeMigrationSql,
+};
