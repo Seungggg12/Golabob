@@ -3,6 +3,7 @@
 
 # Keep Git ignore rules themselves.
 !.gitignore
+!.gitattributes
 !**/.env.example
 
 # Ignore installed dependencies at any depth.
