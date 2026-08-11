@@ -1,10 +1,10 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { BottomNav } from "./components/BottomNav";
 import { BrandMark } from "./components/BrandMark";
-import { AuthScreen } from "./screens/AuthScreen";
 import { CreateOffer } from "./screens/CreateOffer";
 import { CreateRequest } from "./screens/CreateRequest";
+import { LoginScreen } from "./screens/LoginScreen";
 import { MyPage } from "./screens/MyPage";
 import { OfferComparison } from "./screens/OfferComparison";
 import { OwnerHome } from "./screens/OwnerHome";
@@ -14,6 +14,7 @@ import { OwnerRequestDetail } from "./screens/OwnerRequestDetail";
 import { ReservationConfirmation } from "./screens/ReservationConfirmation";
 import { RequestWaiting } from "./screens/RequestWaiting";
 import { RoleSelection } from "./screens/RoleSelection";
+import { SignupScreen } from "./screens/SignupScreen";
 import { SplashOnboarding } from "./screens/SplashOnboarding";
 import { UserHome } from "./screens/UserHome";
 import MyReservation from "./screens/MyReservation";
@@ -25,6 +26,7 @@ import RestaurantRegister from "./screens/RestaurantRegister";
 import { WriteReview } from "./screens/WriteReview";
 import {
   AppScreen,
+  AuthFieldErrors,
   AuthMode,
   AuthResponse,
   CreateDiningRequestInput,
@@ -39,7 +41,7 @@ import {
   UserRole,
 } from "./types";
 
-const defaultApiBaseUrl = "http://localhost:3000";
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 const accessTokenKey = "golabobAccessToken";
 const activeRoleKey = "golabobActiveRole";
 const activeRoleUserKey = "golabobActiveRoleUser";
@@ -74,6 +76,40 @@ class ApiRequestError extends Error {
   ) {
     super(message);
   }
+}
+
+function mapAuthFieldErrors(error: ApiRequestError, mode: AuthMode): AuthFieldErrors {
+  if (mode === "login" && error.status === 401) {
+    return { password: error.message };
+  }
+
+  if (mode === "signup" && error.status === 409) {
+    if (error.message.includes("전화번호")) {
+      return { phone: error.message };
+    }
+
+    return { email: error.message };
+  }
+
+  if (mode === "signup" && error.status === 400) {
+    if (error.message.includes("이름")) {
+      return { name: error.message };
+    }
+    if (error.message.includes("이메일")) {
+      return { email: error.message };
+    }
+    if (error.message.includes("휴대전화")) {
+      return { phone: error.message };
+    }
+    if (error.message.includes("비밀번호")) {
+      return { password: error.message };
+    }
+    if (error.message.includes("약관")) {
+      return { agreements: error.message };
+    }
+  }
+
+  return {};
 }
 
 function readStoredAccessToken() {
@@ -130,13 +166,14 @@ function canAccessScreen(screen: AppScreen, role: UserRole) {
 function App() {
   const [screen, setScreen] = useState<AppScreen>("splash");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
   const [accessToken, setAccessToken] = useState(readStoredAccessToken);
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
-  const [name, setName] = useState("홍길동");
-  const [email, setEmail] = useState("user@example.com");
-  const [phone, setPhone] = useState("010-1234-5678");
-  const [password, setPassword] = useState("password1234");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [authFieldErrors, setAuthFieldErrors] = useState<AuthFieldErrors>({});
   const [serviceTerms, setServiceTerms] = useState(false);
   const [privacyPolicy, setPrivacyPolicy] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -176,19 +213,6 @@ function App() {
     setReviewReservation({ reservationId, restaurantId, restaurantName });
     setScreen("writeReview");
   };
-
-  const title = authMode === "login" ? "다시 만나서 반가워요" : "골라밥 시작하기";
-  const submitText = authMode === "login" ? "로그인" : "회원가입";
-  const userLabel = useMemo(() => {
-    if (!currentUser) {
-      return "로그인 안 됨";
-    }
-
-    const roleLabels = getServiceRoles(currentUser).map((userRole) =>
-      userRole === "owner" ? "사장님" : "예약자",
-    );
-    return `${currentUser.name} (${currentUser.email}) / ${roleLabels.join(", ")}`;
-  }, [currentUser]);
 
   const resetDataState = () => {
     setMyRequests([]);
@@ -237,7 +261,7 @@ function App() {
     requestAccessToken = accessToken,
     clearOnUnauthorized = true,
   ) => {
-    const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}${path}`, {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
       ...options,
       headers: {
         "content-type": "application/json",
@@ -442,9 +466,18 @@ function App() {
     }
   }, [screen, accessToken, selectedRequest?.id]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
+
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
+    if (isLoading) {
+      return;
+    }
+
     setIsLoading(true);
+    setAuthFieldErrors({});
     setMessage("요청을 처리하는 중입니다.");
 
     try {
@@ -487,40 +520,21 @@ function App() {
       setRole(serviceRole);
       localStorage.setItem(activeRoleKey, serviceRole);
       localStorage.setItem(activeRoleUserKey, body.user.id);
+      setPassword("");
+      setPasswordConfirmation("");
       setMessage(`${body.user.email} 계정으로 로그인했습니다.`);
       setScreen("roleSelection");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "요청에 실패했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchMe = async () => {
-    if (!accessToken) {
-      setMessage("저장된 로그인 토큰이 없습니다.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const body = await requestJson<{ user: PublicUser }>("/api/auth/me");
-      const serviceRoles = getServiceRoles(body.user);
-      setCurrentUser(body.user);
-
-      if (!serviceRoles.includes(role)) {
-        const serviceRole = getPreferredRole(body.user);
-        if (serviceRole) {
-          setRole(serviceRole);
-          localStorage.setItem(activeRoleKey, serviceRole);
-          localStorage.setItem(activeRoleUserKey, body.user.id);
-        }
-      }
-
-      setMessage(`${body.user.email} 계정으로 로그인되어 있습니다.`);
-    } catch (error) {
-      if (!(error instanceof ApiRequestError && error.status === 401)) {
-        setMessage(error instanceof Error ? error.message : "내 정보 조회에 실패했습니다.");
+      if (error instanceof ApiRequestError) {
+        const fieldErrors = mapAuthFieldErrors(error, authMode);
+        setAuthFieldErrors(fieldErrors);
+        setMessage(
+          Object.keys(fieldErrors).length > 0
+            ? "입력한 정보를 다시 확인해주세요."
+            : error.message,
+        );
+      } else {
+        setMessage(error instanceof Error ? error.message : "요청에 실패했습니다.");
       }
     } finally {
       setIsLoading(false);
@@ -649,6 +663,19 @@ function App() {
     clearSession("로그아웃했습니다.", "splash");
   };
 
+  const openAuth = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setAuthFieldErrors({});
+    setPassword("");
+    setPasswordConfirmation("");
+    setMessage(
+      mode === "login"
+        ? "가입한 이메일과 비밀번호를 입력해주세요."
+        : "필수 정보를 입력하고 골라밥을 시작하세요.",
+    );
+    setScreen("auth");
+  };
+
   const navigate = (nextScreen: AppScreen) => {
     const serviceRole =
       currentUser && getServiceRoles(currentUser).includes(role) ? role : null;
@@ -668,37 +695,51 @@ function App() {
     setScreen(nextScreen);
   };
 
-  const authScreen = (
-    <AuthScreen
-      apiBaseUrl={apiBaseUrl}
-      authMode={authMode}
+  const authScreen = authMode === "login" ? (
+    <LoginScreen
       email={email}
-      fetchMe={fetchMe}
-      marketingConsent={marketingConsent}
+      fieldErrors={authFieldErrors}
       isLoading={isLoading}
+      message={message}
+      password={password}
+      rememberLogin={rememberLogin}
+      onBack={() => setScreen("splash")}
+      onEmailChange={setEmail}
+      onFieldErrorClear={(field) => {
+        setAuthFieldErrors((current) => ({ ...current, [field]: undefined }));
+      }}
+      onPasswordChange={setPassword}
+      onRememberLoginChange={setRememberLogin}
+      onSignup={() => openAuth("signup")}
+      onSubmit={submitAuth}
+    />
+  ) : (
+    <SignupScreen
+      email={email}
+      fieldErrors={authFieldErrors}
+      isLoading={isLoading}
+      marketingConsent={marketingConsent}
       message={message}
       name={name}
       password={password}
+      passwordConfirmation={passwordConfirmation}
       phone={phone}
       privacyPolicy={privacyPolicy}
-      rememberLogin={rememberLogin}
       serviceTerms={serviceTerms}
-      setApiBaseUrl={setApiBaseUrl}
-      setAuthMode={setAuthMode}
-      setEmail={setEmail}
-      setMarketingConsent={setMarketingConsent}
-      setName={setName}
-      setPassword={setPassword}
-      setPhone={setPhone}
-      setPrivacyPolicy={setPrivacyPolicy}
-      setRememberLogin={setRememberLogin}
-      setServiceTerms={setServiceTerms}
-      submitAuth={submitAuth}
-      submitText={submitText}
-      title={title}
-      userLabel={userLabel}
       onBack={() => setScreen("splash")}
-      onLogout={logout}
+      onEmailChange={setEmail}
+      onFieldErrorClear={(field) => {
+        setAuthFieldErrors((current) => ({ ...current, [field]: undefined }));
+      }}
+      onLogin={() => openAuth("login")}
+      onMarketingConsentChange={setMarketingConsent}
+      onNameChange={setName}
+      onPasswordChange={setPassword}
+      onPasswordConfirmationChange={setPasswordConfirmation}
+      onPhoneChange={setPhone}
+      onPrivacyPolicyChange={setPrivacyPolicy}
+      onServiceTermsChange={setServiceTerms}
+      onSubmit={submitAuth}
     />
   );
 
@@ -713,10 +754,7 @@ function App() {
   if (screen === "splash") {
     return (
       <SplashOnboarding
-        onStart={() => {
-          setAuthMode("login");
-          setScreen("auth");
-        }}
+        onStart={() => openAuth("login")}
       />
     );
   }
@@ -758,8 +796,6 @@ function App() {
       <AppHeader
         role={activeRole}
         roles={getServiceRoles(currentUser)}
-        onAuth={() => setScreen("auth")}
-        onLogout={logout}
         onSwitchRole={switchRole}
       />
       <main className="page-shell">

@@ -23,6 +23,12 @@ interface MenuItem {
   screen: AppScreen;
 }
 
+interface ProfileErrors {
+  email?: string;
+  name?: string;
+  phone?: string;
+}
+
 function formatPhoneForInput(phone: string) {
   const match = phone.match(/^\+8210(\d{4})(\d{4})$/);
   return match ? `010-${match[1]}-${match[2]}` : phone;
@@ -44,6 +50,7 @@ export function MyPage({
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(formatPhoneForInput(user.phone));
   const [feedback, setFeedback] = useState("");
+  const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
 
   useEffect(() => {
     setName(user.name);
@@ -98,6 +105,7 @@ export function MyPage({
     setEmail(user.email);
     setPhone(formatPhoneForInput(user.phone));
     setFeedback("");
+    setProfileErrors({});
     setIsEditing(false);
   };
 
@@ -105,6 +113,23 @@ export function MyPage({
     event.preventDefault();
     setIsSaving(true);
     setFeedback("");
+
+    const nextErrors: ProfileErrors = {};
+    if (name.trim().length < 2) {
+      nextErrors.name = "이름은 2자 이상 입력해주세요.";
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      nextErrors.email = "올바른 이메일 주소를 입력해주세요.";
+    }
+    if (!/^010[- ]?\d{4}[- ]?\d{4}$/.test(phone.trim())) {
+      nextErrors.phone = "010으로 시작하는 휴대전화 번호를 입력해주세요.";
+    }
+
+    setProfileErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setIsSaving(false);
+      return;
+    }
 
     try {
       await onUpdateProfile({ name, email, phone });
@@ -135,18 +160,21 @@ export function MyPage({
         <div>
           <p className="eyebrow">My Golabob</p>
           <h1>마이페이지</h1>
+          <p>계정 정보와 골라밥 활동을 관리하세요.</p>
         </div>
         <span className="my-page-role">{role === "owner" ? "사장님 모드" : "예약자 모드"}</span>
       </header>
 
-      <section className="profile-card" aria-label="내 계정 정보">
-        <span className="material-symbols-outlined avatar" aria-hidden="true">
-          account_circle
-        </span>
+      <section className="profile-card account-profile-card" aria-label="내 계정 정보">
+        <span className="avatar" aria-hidden="true">{user.name.trim().slice(0, 1) || "G"}</span>
         <div className="profile-summary">
           <strong>{user.name}</strong>
           <span>{user.maskedEmail}</span>
           <span>{user.maskedPhone}</span>
+          <div className="account-badges">
+            <span className="account-status active">정상 계정</span>
+            <span>{user.roles.includes("owner") ? "예약자 · 사장님" : "예약자"}</span>
+          </div>
         </div>
         <button className="profile-edit-button" type="button" onClick={() => setIsEditing(true)}>
           <span className="material-symbols-outlined" aria-hidden="true">edit</span>
@@ -154,30 +182,45 @@ export function MyPage({
         </button>
       </section>
 
-      <div className="verification-grid" aria-label="연락처 인증 상태">
-        <div>
-          <span className="material-symbols-outlined" aria-hidden="true">mail</span>
+      <section className="account-section" aria-labelledby="verification-title">
+        <div className="section-header compact-section-header">
           <div>
-            <strong>이메일</strong>
-            <span>{user.emailVerified ? "인증 완료" : "인증 필요"}</span>
+            <p className="eyebrow">Verification</p>
+            <h2 id="verification-title">연락처 인증</h2>
           </div>
         </div>
-        <div>
-          <span className="material-symbols-outlined" aria-hidden="true">smartphone</span>
-          <div>
-            <strong>휴대전화</strong>
-            <span>{user.phoneVerified ? "인증 완료" : "인증 필요"}</span>
+        <div className="verification-grid">
+          <div className={user.emailVerified ? "verified" : "unverified"}>
+            <span className="material-symbols-outlined" aria-hidden="true">mail</span>
+            <div>
+              <strong>이메일</strong>
+              <span>{user.emailVerified ? "인증 완료" : "인증 기능 준비 중"}</span>
+            </div>
+            <span className="material-symbols-outlined verification-state" aria-hidden="true">
+              {user.emailVerified ? "verified" : "info"}
+            </span>
+          </div>
+          <div className={user.phoneVerified ? "verified" : "unverified"}>
+            <span className="material-symbols-outlined" aria-hidden="true">smartphone</span>
+            <div>
+              <strong>휴대전화</strong>
+              <span>{user.phoneVerified ? "인증 완료" : "인증 기능 준비 중"}</span>
+            </div>
+            <span className="material-symbols-outlined verification-state" aria-hidden="true">
+              {user.phoneVerified ? "verified" : "info"}
+            </span>
           </div>
         </div>
-      </div>
+      </section>
 
       {isEditing ? (
-        <form className="profile-form" onSubmit={submitProfile}>
+        <form className="profile-form" onSubmit={submitProfile} noValidate>
           <div className="section-header">
-            <div>
+           <div>
               <p className="eyebrow">Profile</p>
-              <h2>프로필 수정</h2>
-            </div>
+              <h2>내 정보 수정</h2>
+              <p className="section-description">이메일이나 휴대전화를 변경하면 인증 상태가 초기화됩니다.</p>
+           </div>
             <button className="icon-button" type="button" onClick={resetForm} aria-label="프로필 수정 닫기">
               <span className="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
@@ -185,7 +228,16 @@ export function MyPage({
           <div className="profile-field-grid">
             <label>
               이름
-              <input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
+              <input
+                autoComplete="name"
+                value={name}
+                aria-invalid={Boolean(profileErrors.name)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setProfileErrors((current) => ({ ...current, name: undefined }));
+                }}
+              />
+              {profileErrors.name ? <small className="field-error">{profileErrors.name}</small> : null}
             </label>
             <label>
               이메일
@@ -193,8 +245,13 @@ export function MyPage({
                 autoComplete="email"
                 inputMode="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                aria-invalid={Boolean(profileErrors.email)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setProfileErrors((current) => ({ ...current, email: undefined }));
+                }}
               />
+              {profileErrors.email ? <small className="field-error">{profileErrors.email}</small> : null}
             </label>
             <label>
               휴대전화
@@ -202,8 +259,13 @@ export function MyPage({
                 autoComplete="tel"
                 inputMode="tel"
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                aria-invalid={Boolean(profileErrors.phone)}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  setProfileErrors((current) => ({ ...current, phone: undefined }));
+                }}
               />
+              {profileErrors.phone ? <small className="field-error">{profileErrors.phone}</small> : null}
             </label>
           </div>
           {feedback ? <p className="profile-feedback" role="status">{feedback}</p> : null}
@@ -225,7 +287,8 @@ export function MyPage({
           <span className="material-symbols-outlined" aria-hidden="true">storefront</span>
           <div>
             <p className="eyebrow">For Restaurant</p>
-            <h2 id="owner-conversion-title">사장님으로 시작하기</h2>
+            <h2 id="owner-conversion-title">내 식당도 골라밥에서 운영해보세요</h2>
+            <p>현재는 별도 승인 없이 사장님 모드를 바로 시작할 수 있습니다.</p>
           </div>
           <button
             className="wide-primary"
@@ -234,7 +297,7 @@ export function MyPage({
             onClick={() => void activateOwner()}
           >
             <span className="material-symbols-outlined" aria-hidden="true">switch_account</span>
-            {isActivatingOwner ? "전환 중" : "사장님 전환 신청"}
+            {isActivatingOwner ? "전환 중" : "사장님 모드 시작"}
           </button>
           {ownerFeedback ? (
             <p className="profile-feedback owner-conversion-feedback" role="alert">
@@ -265,10 +328,17 @@ export function MyPage({
         </div>
       </section>
 
-      <button className="my-page-logout" type="button" onClick={onLogout}>
-        <span className="material-symbols-outlined" aria-hidden="true">logout</span>
-        로그아웃
-      </button>
+      <section className="account-section account-management" aria-labelledby="account-management-title">
+        <div>
+          <p className="eyebrow">Account</p>
+          <h2 id="account-management-title">계정 관리</h2>
+          <p>현재 기기에서 골라밥 계정 사용을 종료합니다.</p>
+        </div>
+        <button className="my-page-logout" type="button" onClick={onLogout}>
+          <span className="material-symbols-outlined" aria-hidden="true">logout</span>
+          로그아웃
+        </button>
+      </section>
     </section>
   );
 }

@@ -4,14 +4,10 @@ import { UserRole } from "../types";
 export function AppHeader({
   role,
   roles,
-  onAuth,
-  onLogout,
   onSwitchRole,
 }: {
   role: UserRole;
   roles: UserRole[];
-  onAuth: () => void;
-  onLogout: () => void;
   onSwitchRole: (role: UserRole) => void;
 }) {
   const nextRole = role === "owner" ? "user" : "owner";
@@ -24,16 +20,16 @@ export function AppHeader({
         <div className="header-actions">
           <span className="role-badge">{role === "owner" ? "사장님" : "예약자"}</span>
           {canSwitchRole ? (
-            <button type="button" onClick={() => onSwitchRole(nextRole)}>
-              {nextRole === "owner" ? "사장님 모드" : "예약자 모드"}
+            <button
+              type="button"
+              onClick={() => onSwitchRole(nextRole)}
+              aria-label={nextRole === "owner" ? "사장님 모드로 전환" : "예약자 모드로 전환"}
+              title={nextRole === "owner" ? "사장님 모드" : "예약자 모드"}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">swap_horiz</span>
+              <span className="action-label">{nextRole === "owner" ? "사장님 모드" : "예약자 모드"}</span>
             </button>
           ) : null}
-          <button type="button" onClick={onAuth}>
-            계정
-          </button>
-          <button type="button" onClick={onLogout}>
-            로그아웃
-          </button>
         </div>
       </div>
     </header>
