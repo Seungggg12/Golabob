@@ -35,14 +35,23 @@ export class OffersController {
     summary: "오퍼 상태 조회",
     description: "사장이 보낸 오퍼 목록과 선택 여부를 확인합니다. restaurantId를 넘기면 특정 식당의 오퍼만 조회합니다.",
   })
-  @ApiQuery({ name: "restaurantId", required: false, example: "1", description: "특정 식당 id" })
+  @ApiQuery({
+    name: "restaurantId",
+    required: false,
+    example: "7b3e9f6f-d630-42d8-a5c0-8d21fae3dd2e",
+    description: "특정 식당 UUID",
+  })
+  @ApiQuery({ name: "cursor", required: false, description: "직전 페이지 마지막 오퍼 id" })
+  @ApiQuery({ name: "limit", required: false, example: 50, description: "조회 개수(1~100)" })
   @Roles("owner")
   @Get("owner/offers")
   findOwnerOffers(
     @CurrentUser() user: AuthUser,
     @Query("restaurantId") restaurantId?: string,
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
   ) {
-    return this.offersService.findOwnerOffers(user, restaurantId);
+    return this.offersService.findOwnerOffers(user, restaurantId, { cursor, limit });
   }
 
   @ApiOperation({
@@ -68,13 +77,17 @@ export class OffersController {
     description: "사용자가 본인의 회식 요청에 들어온 식당 오퍼 목록을 조회합니다.",
   })
   @ApiParam({ name: "requestId", example: "1", description: "오퍼 목록을 확인할 내 회식 요청 id" })
+  @ApiQuery({ name: "cursor", required: false, description: "직전 페이지 마지막 오퍼 id" })
+  @ApiQuery({ name: "limit", required: false, example: 50, description: "조회 개수(1~100)" })
   @Roles("user")
   @Get("dining-requests/:requestId/offers")
   findOffersForMyDiningRequest(
     @CurrentUser() user: AuthUser,
     @Param("requestId") requestId: string,
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
   ) {
-    return this.offersService.findOffersForMyDiningRequest(user, requestId);
+    return this.offersService.findOffersForMyDiningRequest(user, requestId, { cursor, limit });
   }
 
   @ApiOperation({

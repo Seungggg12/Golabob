@@ -2,22 +2,22 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateDiningRequestDto {
   @ApiProperty({ example: "강남역 회식 장소 구해요", description: "사용자가 구분하기 위한 회식 요청 제목" })
-  title?: string;
+  title!: string;
 
-  @ApiProperty({ example: "2026-07-10", description: "회식 조건 등록 항목: 회식 날짜" })
-  diningDate?: string;
+  @ApiProperty({ example: "2027-12-31", description: "회식 조건 등록 항목: 미래 회식 날짜" })
+  diningDate!: string;
 
   @ApiProperty({ example: "19:00", description: "회식 조건 등록 항목: 회식 시간, HH:mm 형식" })
-  diningTime?: string;
+  diningTime!: string;
 
   @ApiProperty({ example: 8, description: "회식 조건 등록 항목: 회식 인원, 2명 이상" })
-  headCount?: number;
+  headCount!: number;
 
   @ApiProperty({ example: "강남역", description: "회식 조건 등록 항목: 희망 지역" })
-  region?: string;
+  region!: string;
 
   @ApiProperty({ example: 30000, description: "회식 조건 등록 항목: 1인 예산" })
-  budgetPerPerson?: number;
+  budgetPerPerson!: number;
 
   @ApiPropertyOptional({ example: "고기", description: "회식 조건 등록 항목: 선호 음식 종류" })
   preferredMenu?: string;
