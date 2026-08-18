@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateOfferDto {
-  @ApiProperty({ example: "1", description: "오퍼를 보내는 식당 id. 식당 기능 연동 전까지는 임시 값으로 사용합니다." })
-  restaurantId?: string;
+  @ApiProperty({
+    example: "7b3e9f6f-d630-42d8-a5c0-8d21fae3dd2e",
+    description: "오퍼를 보내는 승인된 본인 식당 UUID",
+  })
+  restaurantId!: string;
 
   @ApiProperty({ example: 28000, description: "오퍼 작성 항목: 1인 제안 가격" })
-  pricePerPerson?: number;
+  pricePerPerson!: number;
 
   @ApiProperty({ example: "삼겹살 + 된장찌개 + 음료", description: "오퍼 작성 항목: 메뉴 구성" })
-  menuDescription?: string;
+  menuDescription!: string;
 
   @ApiPropertyOptional({ example: "소주 2병 서비스", description: "오퍼 작성 항목: 제공 서비스 또는 혜택" })
   serviceDescription?: string;
@@ -17,7 +20,7 @@ export class CreateOfferDto {
   seatDescription?: string;
 
   @ApiProperty({ example: "19:00", description: "오퍼 작성 항목: 예약 가능 시간, HH:mm 형식" })
-  availableTime?: string;
+  availableTime!: string;
 
   @ApiPropertyOptional({
     example: "조용한 룸으로 준비해드릴 수 있습니다.",
@@ -26,7 +29,7 @@ export class CreateOfferDto {
   ownerComment?: string;
 
   @ApiPropertyOptional({
-    example: "2026-07-09T23:59:59+09:00",
+    example: "2027-12-30T23:59:59+09:00",
     description: "오퍼 유효 시간. 지정하지 않으면 만료 시간 없이 등록됩니다.",
   })
   expiresAt?: string;

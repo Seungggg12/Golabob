@@ -1,5 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
 import { AuthUser } from "../auth/auth-user";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -27,10 +34,16 @@ export class DiningRequestsController {
   }
 
   @ApiOperation({ summary: "내 요청 목록 조회", description: "로그인한 사용자가 직접 등록한 회식 요청 목록을 조회합니다." })
+  @ApiQuery({ name: "cursor", required: false, description: "직전 페이지 마지막 요청 id" })
+  @ApiQuery({ name: "limit", required: false, example: 50, description: "조회 개수(1~100)" })
   @Roles("user")
   @Get("dining-requests/me")
-  findMine(@CurrentUser() user: AuthUser) {
-    return this.diningRequestsService.findMine(user);
+  findMine(
+    @CurrentUser() user: AuthUser,
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.diningRequestsService.findMine(user, { cursor, limit });
   }
 
   @ApiOperation({ summary: "내 요청 상세 조회", description: "사용자가 본인이 등록한 특정 회식 요청의 상세 조건을 확인합니다." })
@@ -50,10 +63,16 @@ export class DiningRequestsController {
   }
 
   @ApiOperation({ summary: "신규 회식 요청 조회", description: "사장이 오퍼를 제안할 수 있는 OPEN 상태의 회식 요청 목록을 조회합니다." })
+  @ApiQuery({ name: "cursor", required: false, description: "직전 페이지 마지막 요청 id" })
+  @ApiQuery({ name: "limit", required: false, example: 50, description: "조회 개수(1~100)" })
   @Roles("owner")
   @Get("owner/dining-requests")
-  findOpenForOwner(@CurrentUser() user: AuthUser) {
-    return this.diningRequestsService.findOpenForOwner(user);
+  findOpenForOwner(
+    @CurrentUser() user: AuthUser,
+    @Query("cursor") cursor?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.diningRequestsService.findOpenForOwner(user, { cursor, limit });
   }
 
   @ApiOperation({ summary: "회식 요청 상세 조회", description: "사장이 특정 회식 요청의 지역, 날짜, 시간, 인원, 예산, 요청사항을 확인합니다." })
