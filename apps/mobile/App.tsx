@@ -1,251 +1,314 @@
-import { useState } from "react";
-import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { BackHandler, SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
+import { BottomNav } from "./src/components/navigation";
+import { LoginScreen, MyPageScreen, RoleSelectionScreen, SignupScreen, SplashScreen } from "./src/screens/AuthProfileScreens";
+import { CreateOfferScreen, MyRestaurantsScreen, OwnerHomeScreen, OwnerOfferDetailScreen, OwnerOfferListScreen, OwnerRequestDetailScreen, OwnerReservationsScreen, RestaurantFormScreen } from "./src/screens/OwnerScreens";
+import { CreateRequestScreen, MyReservationsScreen, OfferComparisonScreen, RequestWaitingScreen, ReservationConfirmationScreen, RestaurantDetailScreen, RestaurantListScreen, UserHomeScreen, WriteReviewScreen } from "./src/screens/UserScreens";
+import { mockOffers, mockRequests, mockReservations, mockRestaurants, mockUser } from "./src/mockData";
+import { colors } from "./src/theme";
+import { AppScreen, DiningRequest, DiningRequestDraft, Offer, OfferDraft, Reservation, ReservationDraft, Restaurant, RestaurantDraft, ReviewDraft, Role, UserProfile } from "./src/types";
 
-const defaultApiBaseUrl = "http://localhost:3000";
+const authenticatedScreens = new Set<AppScreen>([
+  "roleSelection", "userHome", "createRequest", "requestWaiting", "offers", "confirmation", "restaurantList", "restaurantDetail", "myReservation", "writeReview", "ownerHome", "ownerRequestDetail", "createOffer", "ownerOffers", "ownerOfferDetail", "myRestaurants", "restaurantRegister", "ownerReservations", "myPage",
+]);
 
+/**
+ * Mobile UI state is intentionally backed by in-memory data for now.
+ * Every mutation below is the API integration boundary: replace its local
+ * state update with the matching HTTP call, then keep the same screen props.
+ */
 export default function App() {
-  const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiBaseUrl);
-  const [name, setName] = useState("홍길동");
-  const [email, setEmail] = useState("user@example.com");
-  const [phone, setPhone] = useState("010-1234-5678");
-  const [password, setPassword] = useState("password1234");
-  const [serviceTerms, setServiceTerms] = useState(false);
-  const [privacyPolicy, setPrivacyPolicy] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
-  const [accessToken, setAccessToken] = useState("");
-  const [currentUser, setCurrentUser] = useState("-");
-  const [log, setLog] = useState("대기 중");
+  const [screen, setScreen] = useState<AppScreen>("splash");
+  const [history, setHistory] = useState<AppScreen[]>([]);
+  const [signedIn, setSignedIn] = useState(false);
+  const [role, setRole] = useState<Role>("user");
+  const [user, setUser] = useState<UserProfile>(mockUser);
+  const [requests, setRequests] = useState<DiningRequest[]>(mockRequests);
+  const [offers, setOffers] = useState<Offer[]>(mockOffers);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(mockRestaurants);
+  const [reservations, setReservations] = useState<Reservation[]>(mockReservations);
+  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(mockRequests[0]?.id ?? null);
+  const [selectedOfferId, setSelectedOfferId] = useState<number | null>(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
+  const [editingRestaurantId, setEditingRestaurantId] = useState<string | null>(null);
 
-  const appendLog = (title: string, payload: unknown) => {
-    const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
-    setLog(`[${new Date().toLocaleTimeString()}] ${title}\n${body}\n\n${log}`);
-  };
+  const selectedRequest = requests.find((item) => item.id === selectedRequestId) || null;
+  const selectedOffer = offers.find((item) => item.id === selectedOfferId) || null;
+  const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
+  const selectedReservation = reservations.find((item) => item.id === selectedReservationId) || null;
+  const editingRestaurant = restaurants.find((item) => item.id === editingRestaurantId) || null;
+  const ownerRestaurants = useMemo(() => restaurants.filter((item) => item.ownerId === user.id), [restaurants, user.id]);
 
-  const requestJson = async <T,>(path: string, options: RequestInit = {}) => {
-    const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}${path}`, {
-      ...options,
-      headers: {
-        "content-type": "application/json",
-        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
-        ...options.headers,
-      },
+  const navigate = useCallback((next: AppScreen) => {
+    if (authenticatedScreens.has(next) && next !== "roleSelection" && !signedIn) {
+      setHistory((current) => [...current, screen]);
+      setScreen("login");
+      return;
+    }
+    setHistory((current) => current[current.length - 1] === screen ? current : [...current, screen]);
+    setScreen(next);
+  }, [screen, signedIn]);
+
+  const replace = useCallback((next: AppScreen) => {
+    setHistory([]);
+    setScreen(next);
+  }, []);
+
+  const goBack = useCallback((fallback: AppScreen = role === "owner" ? "ownerHome" : "userHome") => {
+    setHistory((current) => {
+      const nextHistory = [...current];
+      const previous = nextHistory.pop();
+      setScreen(previous || fallback);
+      return nextHistory;
     });
-    const body = await response.json();
+  }, [role]);
 
-    if (!response.ok) {
-      throw new Error(body.message || "요청에 실패했습니다.");
-    }
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (["splash", "userHome", "ownerHome"].includes(screen)) return false;
+      goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [goBack, screen]);
 
-    return body as T;
+  const login = async ({ email }: { email: string; password: string; rememberLogin: boolean }) => {
+    setUser((current) => ({ ...current, email }));
+    setSignedIn(true);
+    setRole(user.roles.includes("user") ? "user" : user.roles[0] || "user");
+    replace("roleSelection");
   };
 
-  const checkHealth = async () => {
-    try {
-      const body = await requestJson<{ status: string; message: string }>("/api/health");
-      appendLog("GET /api/health", body);
-    } catch (error) {
-      Alert.alert("Health 실패", String(error));
-    }
+  const signup = async ({ name, email, phone }: { name: string; email: string; phone: string; password: string; marketingConsent: boolean }) => {
+    setUser({ id: `user-${Date.now()}`, name, email, phone, roles: ["user"], emailVerified: false, phoneVerified: false, joinedAt: new Date().toISOString().slice(0, 10) });
+    setSignedIn(true);
+    setRole("user");
+    replace("roleSelection");
   };
 
-  const signup = async () => {
-    try {
-      const body = await requestJson<{
-        user: { name: string; email: string; role: string };
-        accessToken: string;
-      }>(
-        "/api/auth/signup",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name,
-            email,
-            phone,
-            password,
-            agreements: { serviceTerms, privacyPolicy, marketingConsent },
-          }),
-        },
-      );
-      setAccessToken(body.accessToken);
-      setCurrentUser(`${body.user.name} / ${body.user.email} / ${body.user.role}`);
-      appendLog("POST /api/auth/signup", body);
-    } catch (error) {
-      Alert.alert("회원가입 실패", String(error));
-    }
+  const continueWithRole = () => replace(role === "owner" ? "ownerHome" : "userHome");
+
+  const switchRole = (nextRole: Role) => {
+    if (!user.roles.includes(nextRole)) return;
+    setRole(nextRole);
+    replace(nextRole === "owner" ? "ownerHome" : "userHome");
   };
 
-  const login = async () => {
-    try {
-      const body = await requestJson<{ user: { email: string; role: string }; accessToken: string }>(
-        "/api/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        },
-      );
-      setAccessToken(body.accessToken);
-      setCurrentUser(`${body.user.email} / ${body.user.role}`);
-      appendLog("POST /api/auth/login", body);
-    } catch (error) {
-      Alert.alert("로그인 실패", String(error));
-    }
+  const activateOwner = async () => {
+    setUser((current) => current.roles.includes("owner") ? current : { ...current, roles: [...current.roles, "owner"] });
+    setRole("owner");
+    replace("ownerHome");
   };
 
+  const logout = () => {
+    setSignedIn(false);
+    setRole("user");
+    replace("splash");
+  };
+
+  const createRequest = async (draft: DiningRequestDraft) => {
+    const request: DiningRequest = { ...draft, id: Math.max(0, ...requests.map((item) => item.id)) + 1, status: "open", createdAt: new Date().toISOString() };
+    setRequests((current) => [request, ...current]);
+    setSelectedRequestId(request.id);
+    setSelectedOfferId(null);
+    navigate("requestWaiting");
+  };
+
+  const cancelRequest = async (request: DiningRequest) => {
+    setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "canceled" } : item));
+    setOffers((current) => current.map((offer) => offer.diningRequestId === request.id && offer.status === "pending" ? { ...offer, status: "canceled" } : offer));
+  };
+
+  const chooseOffer = async (offer: Offer) => {
+    const request = requests.find((item) => item.id === offer.diningRequestId);
+    if (!request) throw new Error("회식 요청을 찾을 수 없습니다.");
+    setOffers((current) => current.map((item) => item.diningRequestId !== offer.diningRequestId ? item : { ...item, status: item.id === offer.id ? "selected" : item.status === "pending" ? "rejected" : item.status }));
+    setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "reserved" } : item));
+    const reservation: Reservation = {
+      id: `reservation-${Date.now()}`,
+      restaurantId: offer.restaurantId,
+      restaurantName: offer.restaurantName,
+      reservationDate: request.diningDate,
+      reservationTime: offer.availableTime || request.diningTime,
+      headCount: request.headCount,
+      requestMemo: request.memo,
+      status: "confirmed",
+      source: "offer",
+      userName: user.name,
+      userPhone: user.phone,
+      createdAt: new Date().toISOString(),
+    };
+    setReservations((current) => [reservation, ...current]);
+    setSelectedRequestId(request.id);
+    setSelectedOfferId(offer.id);
+    setSelectedReservationId(reservation.id);
+    navigate("confirmation");
+  };
+
+  const createDirectReservation = async (draft: ReservationDraft) => {
+    const restaurant = restaurants.find((item) => item.id === draft.restaurantId);
+    if (!restaurant) throw new Error("식당 정보를 찾을 수 없습니다.");
+    const reservation: Reservation = { id: `reservation-${Date.now()}`, restaurantId: restaurant.id, restaurantName: restaurant.name, reservationDate: draft.reservationDate, reservationTime: draft.reservationTime, headCount: draft.headCount, requestMemo: draft.requestMemo, status: "pending", source: "direct", userName: user.name, userPhone: user.phone, createdAt: new Date().toISOString() };
+    setReservations((current) => [reservation, ...current]);
+    setSelectedReservationId(reservation.id);
+    replace("myReservation");
+  };
+
+  const cancelReservation = async (reservation: Reservation) => {
+    setReservations((current) => current.map((item) => item.id === reservation.id ? { ...item, status: "canceled" } : item));
+  };
+
+  const submitReview = async (review: ReviewDraft) => {
+    setReservations((current) => current.map((item) => item.id === review.reservationId ? { ...item, reviewed: true } : item));
+    replace("myReservation");
+  };
+
+  const createOffer = async (draft: OfferDraft) => {
+    if (!selectedRequest) throw new Error("회식 요청을 찾을 수 없습니다.");
+    const restaurant = restaurants.find((item) => item.id === draft.restaurantId);
+    if (!restaurant) throw new Error("식당 정보를 찾을 수 없습니다.");
+    const offer: Offer = { ...draft, id: Math.max(0, ...offers.map((item) => item.id)) + 1, diningRequestId: selectedRequest.id, restaurantName: restaurant.name, restaurantAddress: restaurant.address, status: "pending", createdAt: new Date().toISOString() };
+    setOffers((current) => [offer, ...current]);
+    setSelectedOfferId(offer.id);
+    replace("ownerOffers");
+  };
+
+  const deleteRestaurant = async (restaurant: Restaurant) => {
+    setRestaurants((current) => current.filter((item) => item.id !== restaurant.id));
+    if (selectedRestaurantId === restaurant.id) setSelectedRestaurantId(null);
+  };
+
+  const saveRestaurant = async (draft: RestaurantDraft, restaurant?: Restaurant) => {
+    if (restaurant) {
+      setRestaurants((current) => current.map((item) => item.id === restaurant.id ? { ...item, ...draft, keywords: [...new Set([...draft.category.split(/[ ·,]/).filter(Boolean), ...draft.facilities])], visualColor: item.visualColor } : item));
+    } else {
+      const created: Restaurant = { ...draft, id: `restaurant-${Date.now()}`, ownerId: user.id, status: "pending", keywords: [...new Set([...draft.category.split(/[ ·,]/).filter(Boolean), ...draft.facilities])], visualColor: "#9BB4A8" };
+      setRestaurants((current) => [created, ...current]);
+    }
+    setEditingRestaurantId(null);
+    replace("myRestaurants");
+  };
+
+  const updateReservationStatus = async (reservation: Reservation, status: Reservation["status"]) => {
+    setReservations((current) => current.map((item) => item.id === reservation.id ? { ...item, status } : item));
+  };
+
+  const openRequest = (request: DiningRequest, owner = false) => {
+    setSelectedRequestId(request.id);
+    setSelectedOfferId(null);
+    navigate(owner ? "ownerRequestDetail" : "requestWaiting");
+  };
+
+  const openRestaurant = (restaurant: Restaurant) => {
+    setSelectedRestaurantId(restaurant.id);
+    navigate("restaurantDetail");
+  };
+
+  const openRestaurantFromReservation = (reservation: Reservation) => {
+    setSelectedRestaurantId(reservation.restaurantId);
+    navigate("restaurantDetail");
+  };
+
+  const openReview = (reservation: Reservation) => {
+    setSelectedReservationId(reservation.id);
+    navigate("writeReview");
+  };
+
+  const openOwnerOffer = (offer: Offer) => {
+    setSelectedOfferId(offer.id);
+    setSelectedRequestId(offer.diningRequestId);
+    navigate("ownerOfferDetail");
+  };
+
+  const openRestaurantEditor = (restaurant?: Restaurant) => {
+    setEditingRestaurantId(restaurant?.id || null);
+    navigate("restaurantRegister");
+  };
+
+  let content: ReactNode;
+  switch (screen) {
+    case "splash":
+      content = <SplashScreen onLogin={() => navigate("login")} onSignup={() => navigate("signup")} onStart={() => navigate("login")} />;
+      break;
+    case "login":
+      content = <LoginScreen onBack={() => goBack("splash")} onSignup={() => navigate("signup")} onSubmit={login} />;
+      break;
+    case "signup":
+      content = <SignupScreen onBack={() => goBack("splash")} onLogin={() => navigate("login")} onSubmit={signup} />;
+      break;
+    case "roleSelection":
+      content = <RoleSelectionScreen onContinue={continueWithRole} onSelect={setRole} roles={user.roles} selectedRole={role} />;
+      break;
+    case "userHome":
+      content = <UserHomeScreen offers={offers} onNavigate={navigate} onSelectRequest={(request) => openRequest(request)} requests={requests} />;
+      break;
+    case "createRequest":
+      content = <CreateRequestScreen onBack={() => goBack("userHome")} onSubmit={createRequest} />;
+      break;
+    case "requestWaiting":
+      content = <RequestWaitingScreen offers={offers} onBack={() => goBack("userHome")} onCancel={cancelRequest} onCompare={() => navigate("offers")} onRefresh={() => undefined} request={selectedRequest} />;
+      break;
+    case "offers":
+      content = <OfferComparisonScreen offers={offers} onBack={() => goBack("requestWaiting")} onSelect={chooseOffer} request={selectedRequest} />;
+      break;
+    case "confirmation":
+      content = <ReservationConfirmationScreen offer={selectedOffer} onHome={() => replace("userHome")} onReservations={() => replace("myReservation")} request={selectedRequest} reservation={selectedReservation} />;
+      break;
+    case "restaurantList":
+      content = <RestaurantListScreen onSelectRestaurant={openRestaurant} restaurants={restaurants} />;
+      break;
+    case "restaurantDetail":
+      content = <RestaurantDetailScreen onBack={() => goBack("restaurantList")} onReserve={createDirectReservation} restaurant={selectedRestaurant} />;
+      break;
+    case "myReservation":
+      content = <MyReservationsScreen onCancel={cancelReservation} onOpenRestaurant={openRestaurantFromReservation} onReview={openReview} reservations={reservations} />;
+      break;
+    case "writeReview":
+      content = <WriteReviewScreen onBack={() => goBack("myReservation")} onSubmit={submitReview} reservation={selectedReservation} />;
+      break;
+    case "ownerHome":
+      content = <OwnerHomeScreen offers={offers.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} onNavigate={navigate} onSelectRequest={(request) => openRequest(request, true)} requests={requests} reservations={reservations.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} />;
+      break;
+    case "ownerRequestDetail":
+      content = <OwnerRequestDetailScreen offers={offers.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} onBack={() => goBack("ownerHome")} onCreateOffer={() => navigate("createOffer")} request={selectedRequest} />;
+      break;
+    case "createOffer":
+      content = <CreateOfferScreen onBack={() => goBack("ownerRequestDetail")} onSubmit={createOffer} request={selectedRequest} restaurants={ownerRestaurants} />;
+      break;
+    case "ownerOffers":
+      content = <OwnerOfferListScreen offers={offers.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} onSelectOffer={openOwnerOffer} requests={requests} />;
+      break;
+    case "ownerOfferDetail":
+      content = <OwnerOfferDetailScreen offer={selectedOffer} onBack={() => goBack("ownerOffers")} request={selectedRequest} />;
+      break;
+    case "myRestaurants":
+      content = <MyRestaurantsScreen onDelete={deleteRestaurant} onEdit={openRestaurantEditor} onNavigate={(next) => next === "restaurantRegister" ? openRestaurantEditor() : navigate(next)} restaurants={ownerRestaurants} />;
+      break;
+    case "restaurantRegister":
+      content = <RestaurantFormScreen onBack={() => goBack("myRestaurants")} onSubmit={saveRestaurant} restaurant={editingRestaurant} />;
+      break;
+    case "ownerReservations":
+      content = <OwnerReservationsScreen onConfirm={(reservation) => updateReservationStatus(reservation, "confirmed")} onReject={(reservation) => updateReservationStatus(reservation, "rejected")} reservations={reservations} restaurants={ownerRestaurants} />;
+      break;
+    case "myPage":
+      content = <MyPageScreen onActivateOwner={activateOwner} onLogout={logout} onNavigate={navigate} onSwitchRole={switchRole} onUpdateProfile={async (profile) => setUser((current) => ({ ...current, ...profile }))} role={role} user={user} />;
+      break;
+    default:
+      content = null;
+  }
+
+  const showNav = signedIn && authenticatedScreens.has(screen) && screen !== "roleSelection";
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.eyebrow}>Golabob Mobile</Text>
-        <Text style={styles.title}>인증 API 콘솔</Text>
-
-        <View style={styles.panel}>
-          <Text style={styles.label}>API Base URL</Text>
-          <TextInput style={styles.input} value={apiBaseUrl} onChangeText={setApiBaseUrl} />
-          <TouchableOpacity style={styles.button} onPress={checkHealth}>
-            <Text style={styles.buttonText}>서버 상태 확인</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.label}>이름</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} />
-          <Text style={styles.label}>이메일</Text>
-          <TextInput style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" />
-          <Text style={styles.label}>휴대전화 번호</Text>
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-          <Text style={styles.label}>비밀번호</Text>
-          <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry />
-          <TouchableOpacity style={styles.consentRow} onPress={() => setServiceTerms(!serviceTerms)}>
-            <Text style={styles.consentMark}>{serviceTerms ? "[x]" : "[ ]"}</Text>
-            <Text style={styles.consentText}>서비스 이용약관 동의 (필수)</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.consentRow} onPress={() => setPrivacyPolicy(!privacyPolicy)}>
-            <Text style={styles.consentMark}>{privacyPolicy ? "[x]" : "[ ]"}</Text>
-            <Text style={styles.consentText}>개인정보 수집 및 이용 동의 (필수)</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.consentRow} onPress={() => setMarketingConsent(!marketingConsent)}>
-            <Text style={styles.consentMark}>{marketingConsent ? "[x]" : "[ ]"}</Text>
-            <Text style={styles.consentText}>마케팅 정보 수신 동의 (선택)</Text>
-          </TouchableOpacity>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.button} onPress={signup}>
-              <Text style={styles.buttonText}>회원가입</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={login}>
-              <Text style={styles.buttonText}>로그인</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.label}>현재 로그인</Text>
-          <Text style={styles.value}>{currentUser}</Text>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.label}>요청 결과</Text>
-          <Text style={styles.log}>{log}</Text>
-        </View>
-      </ScrollView>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
+      <View style={styles.content}>{content}</View>
+      {showNav ? <BottomNav active={screen} onNavigate={navigate} role={role} /> : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f4f7f6",
-  },
-  container: {
-    padding: 20,
-    gap: 14,
-  },
-  eyebrow: {
-    color: "#d88c36",
-    fontSize: 13,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  title: {
-    color: "#1d2624",
-    fontSize: 30,
-    fontWeight: "800",
-  },
-  panel: {
-    gap: 10,
-    borderColor: "#d7dfdc",
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: "#fff",
-    padding: 16,
-  },
-  label: {
-    color: "#62706c",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  input: {
-    minHeight: 44,
-    borderColor: "#d7dfdc",
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  consentRow: {
-    minHeight: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  consentMark: {
-    color: "#246b5a",
-    fontFamily: "monospace",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  consentText: {
-    flex: 1,
-    color: "#1d2624",
-    fontSize: 13,
-  },
-  button: {
-    flex: 1,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 6,
-    backgroundColor: "#246b5a",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "800",
-  },
-  value: {
-    color: "#1d2624",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  log: {
-    color: "#1d2624",
-    fontFamily: "monospace",
-    fontSize: 12,
-    lineHeight: 18,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+  content: { flex: 1 },
 });
