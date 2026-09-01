@@ -3,6 +3,7 @@ import { ActivityIndicator, BackHandler, SafeAreaView, StatusBar, StyleSheet, Te
 import {
   clearStoredSession,
   mobileAuthApi,
+  mobileDiningOfferApi,
   replaceAccessToken,
   restoreAccessToken,
   restoreActiveRole,
@@ -14,9 +15,9 @@ import { BottomNav } from "./src/components/navigation";
 import { LoginScreen, MyPageScreen, RoleSelectionScreen, SignupScreen, SplashScreen } from "./src/screens/AuthProfileScreens";
 import { CreateOfferScreen, MyRestaurantsScreen, OwnerHomeScreen, OwnerOfferDetailScreen, OwnerOfferListScreen, OwnerRequestDetailScreen, OwnerReservationsScreen, RestaurantFormScreen } from "./src/screens/OwnerScreens";
 import { CreateRequestScreen, MyReservationsScreen, OfferComparisonScreen, RequestWaitingScreen, ReservationConfirmationScreen, RestaurantDetailScreen, RestaurantListScreen, UserHomeScreen, WriteReviewScreen } from "./src/screens/UserScreens";
-import { mockOffers, mockRequests, mockReservations, mockRestaurants, mockUser } from "./src/mockData";
+import { mockReservations, mockRestaurants, mockUser } from "./src/mockData";
 import { colors } from "./src/theme";
-import { AppScreen, DiningRequest, DiningRequestDraft, Offer, OfferDraft, Reservation, ReservationDraft, Restaurant, RestaurantDraft, ReviewDraft, Role, UserProfile } from "./src/types";
+import { AppScreen, DiningRequest, DiningRequestDraft, Offer, OfferDraft, OfferRestaurant, Reservation, ReservationDraft, Restaurant, RestaurantDraft, ReviewDraft, Role, UserProfile } from "./src/types";
 
 const authenticatedScreens = new Set<AppScreen>([
   "roleSelection", "userHome", "createRequest", "requestWaiting", "offers", "confirmation", "restaurantList", "restaurantDetail", "myReservation", "writeReview", "ownerHome", "ownerRequestDetail", "createOffer", "ownerOffers", "ownerOfferDetail", "myRestaurants", "restaurantRegister", "ownerReservations", "myPage",
@@ -30,18 +31,23 @@ export default function App() {
   const [sessionMessage, setSessionMessage] = useState("");
   const [role, setRole] = useState<Role>("user");
   const [user, setUser] = useState<UserProfile>(mockUser);
-  const [requests, setRequests] = useState<DiningRequest[]>(mockRequests);
-  const [offers, setOffers] = useState<Offer[]>(mockOffers);
+  const [myRequests, setMyRequests] = useState<DiningRequest[]>([]);
+  const [ownerRequests, setOwnerRequests] = useState<DiningRequest[]>([]);
+  const [requestOffers, setRequestOffers] = useState<Offer[]>([]);
+  const [ownerOffers, setOwnerOffers] = useState<Offer[]>([]);
+  const [offerRestaurants, setOfferRestaurants] = useState<OfferRestaurant[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remoteMessage, setRemoteMessage] = useState("");
   const [restaurants, setRestaurants] = useState<Restaurant[]>(mockRestaurants);
   const [reservations, setReservations] = useState<Reservation[]>(mockReservations);
-  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(mockRequests[0]?.id ?? null);
-  const [selectedOfferId, setSelectedOfferId] = useState<number | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
   const [editingRestaurantId, setEditingRestaurantId] = useState<string | null>(null);
 
-  const selectedRequest = requests.find((item) => item.id === selectedRequestId) || null;
-  const selectedOffer = offers.find((item) => item.id === selectedOfferId) || null;
+  const selectedRequest = [...myRequests, ...ownerRequests].find((item) => item.id === selectedRequestId) || null;
+  const selectedOffer = [...requestOffers, ...ownerOffers].find((item) => item.id === selectedOfferId) || null;
   const selectedRestaurant = restaurants.find((item) => item.id === selectedRestaurantId) || null;
   const selectedReservation = reservations.find((item) => item.id === selectedReservationId) || null;
   const editingRestaurant = restaurants.find((item) => item.id === editingRestaurantId) || null;
@@ -123,6 +129,71 @@ export default function App() {
     return () => subscription.remove();
   }, [goBack, screen]);
 
+  useEffect(() => {
+    if (!signedIn) return;
+    let active = true;
+
+    const loadRemoteData = async () => {
+      setRemoteLoading(true);
+      setRemoteMessage("");
+      try {
+        if (screen === "userHome") {
+          const nextRequests = await mobileDiningOfferApi.listMine();
+          const offersByRequest = await Promise.all(
+            nextRequests.map((request) => mobileDiningOfferApi.listRequestOffers(request.id)),
+          );
+          if (active) {
+            setMyRequests(nextRequests);
+            setRequestOffers(offersByRequest.flat());
+          }
+        } else if ((screen === "requestWaiting" || screen === "offers") && selectedRequestId) {
+          const [request, nextOffers] = await Promise.all([
+            mobileDiningOfferApi.getMine(selectedRequestId),
+            mobileDiningOfferApi.listRequestOffers(selectedRequestId),
+          ]);
+          if (active) {
+            setMyRequests((current) => [request, ...current.filter((item) => item.id !== request.id)]);
+            setRequestOffers(nextOffers);
+          }
+        } else if (screen === "ownerHome") {
+          const [nextRequests, nextOffers] = await Promise.all([
+            mobileDiningOfferApi.listOwnerRequests(),
+            mobileDiningOfferApi.listOwnerOffers(),
+          ]);
+          if (active) {
+            setOwnerRequests(nextRequests);
+            setOwnerOffers(nextOffers);
+          }
+        } else if (screen === "ownerRequestDetail" && selectedRequestId) {
+          const [request, nextOffers] = await Promise.all([
+            mobileDiningOfferApi.getOwnerRequest(selectedRequestId),
+            mobileDiningOfferApi.listOwnerOffers(),
+          ]);
+          if (active) {
+            setOwnerRequests((current) => [request, ...current.filter((item) => item.id !== request.id)]);
+            setOwnerOffers(nextOffers);
+          }
+        } else if (screen === "createOffer") {
+          const nextRestaurants = await mobileDiningOfferApi.listOfferRestaurants();
+          if (active) setOfferRestaurants(nextRestaurants);
+        } else if (screen === "ownerOffers") {
+          const nextOffers = await mobileDiningOfferApi.listOwnerOffers();
+          if (active) setOwnerOffers(nextOffers);
+        } else if (screen === "ownerOfferDetail" && selectedOfferId) {
+          const offer = await mobileDiningOfferApi.getOwnerOffer(selectedOfferId);
+          if (active) setOwnerOffers((current) => [offer, ...current.filter((item) => item.id !== offer.id)]);
+        }
+      } catch (error) {
+        if (active) setRemoteMessage(error instanceof Error ? error.message : "서버 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (active) setRemoteLoading(false);
+      }
+    };
+
+    void loadRemoteData();
+    return () => { active = false; };
+  }, [screen, selectedOfferId, selectedRequestId, signedIn]);
+
   const login = async ({ email, password, rememberLogin }: { email: string; password: string; rememberLogin: boolean }) => {
     const result = await mobileAuthApi.login(email, password);
     await storeAccessToken(result.accessToken, rememberLogin);
@@ -177,42 +248,52 @@ export default function App() {
   };
 
   const createRequest = async (draft: DiningRequestDraft) => {
-    const request: DiningRequest = { ...draft, id: Math.max(0, ...requests.map((item) => item.id)) + 1, status: "open", createdAt: new Date().toISOString() };
-    setRequests((current) => [request, ...current]);
+    const request = await mobileDiningOfferApi.createRequest(draft);
+    setMyRequests((current) => [request, ...current.filter((item) => item.id !== request.id)]);
+    setRequestOffers([]);
     setSelectedRequestId(request.id);
     setSelectedOfferId(null);
     navigate("requestWaiting");
   };
 
   const cancelRequest = async (request: DiningRequest) => {
-    setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "canceled" } : item));
-    setOffers((current) => current.map((offer) => offer.diningRequestId === request.id && offer.status === "pending" ? { ...offer, status: "canceled" } : offer));
+    const canceled = await mobileDiningOfferApi.cancelRequest(request.id);
+    setMyRequests((current) => [canceled, ...current.filter((item) => item.id !== canceled.id)]);
+    setRequestOffers((current) => current.map((offer) =>
+      offer.diningRequestId === request.id && offer.status === "pending"
+        ? { ...offer, status: "canceled" }
+        : offer,
+    ));
+    try {
+      setRequestOffers(await mobileDiningOfferApi.listRequestOffers(request.id));
+    } catch (error) {
+      setRemoteMessage(error instanceof Error ? error.message : "최신 오퍼 상태를 불러오지 못했습니다.");
+    }
   };
 
   const chooseOffer = async (offer: Offer) => {
-    const request = requests.find((item) => item.id === offer.diningRequestId);
+    const request = myRequests.find((item) => item.id === offer.diningRequestId);
     if (!request) throw new Error("회식 요청을 찾을 수 없습니다.");
-    setOffers((current) => current.map((item) => item.diningRequestId !== offer.diningRequestId ? item : { ...item, status: item.id === offer.id ? "selected" : item.status === "pending" ? "rejected" : item.status }));
-    setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "reserved" } : item));
-    const reservation: Reservation = {
-      id: `reservation-${Date.now()}`,
-      restaurantId: offer.restaurantId,
-      restaurantName: offer.restaurantName,
-      reservationDate: request.diningDate,
-      reservationTime: offer.availableTime || request.diningTime,
-      headCount: request.headCount,
-      requestMemo: request.memo,
-      status: "confirmed",
-      source: "offer",
-      userName: user.name,
-      userPhone: user.phone,
-      createdAt: new Date().toISOString(),
-    };
+    const { offer: selected, reservation } = await mobileDiningOfferApi.selectOffer(request.id, offer.id, user);
+    setMyRequests((current) => current.map((item) => item.id === request.id ? { ...item, status: "reserved" } : item));
+    setRequestOffers((current) => current.map((item) => item.diningRequestId !== request.id
+      ? item
+      : item.id === selected.id ? selected : item.status === "pending" ? { ...item, status: "rejected" } : item));
     setReservations((current) => [reservation, ...current]);
     setSelectedRequestId(request.id);
-    setSelectedOfferId(offer.id);
+    setSelectedOfferId(selected.id);
     setSelectedReservationId(reservation.id);
     navigate("confirmation");
+    try {
+      const [updatedRequest, nextOffers] = await Promise.all([
+        mobileDiningOfferApi.getMine(request.id),
+        mobileDiningOfferApi.listRequestOffers(request.id),
+      ]);
+      setMyRequests((current) => [updatedRequest, ...current.filter((item) => item.id !== updatedRequest.id)]);
+      setRequestOffers(nextOffers);
+    } catch (error) {
+      setRemoteMessage(error instanceof Error ? error.message : "최신 선택 상태를 불러오지 못했습니다.");
+    }
   };
 
   const createDirectReservation = async (draft: ReservationDraft) => {
@@ -235,12 +316,27 @@ export default function App() {
 
   const createOffer = async (draft: OfferDraft) => {
     if (!selectedRequest) throw new Error("회식 요청을 찾을 수 없습니다.");
-    const restaurant = restaurants.find((item) => item.id === draft.restaurantId);
-    if (!restaurant) throw new Error("식당 정보를 찾을 수 없습니다.");
-    const offer: Offer = { ...draft, id: Math.max(0, ...offers.map((item) => item.id)) + 1, diningRequestId: selectedRequest.id, restaurantName: restaurant.name, restaurantAddress: restaurant.address, status: "pending", createdAt: new Date().toISOString() };
-    setOffers((current) => [offer, ...current]);
-    setSelectedOfferId(offer.id);
+    const created = await mobileDiningOfferApi.createOffer(selectedRequest.id, draft);
+    const restaurant = offerRestaurants.find((item) => item.id === created.restaurantId);
+    const displayed = restaurant ? { ...created, restaurantName: restaurant.name, restaurantAddress: restaurant.address } : created;
+    setOwnerOffers((current) => [displayed, ...current.filter((item) => item.id !== displayed.id)]);
+    setSelectedOfferId(displayed.id);
     replace("ownerOffers");
+    try {
+      setOwnerOffers(await mobileDiningOfferApi.listOwnerOffers());
+    } catch (error) {
+      setRemoteMessage(error instanceof Error ? error.message : "최신 오퍼 목록을 불러오지 못했습니다.");
+    }
+  };
+
+  const refreshSelectedRequest = async () => {
+    if (!selectedRequestId) return;
+    const [request, nextOffers] = await Promise.all([
+      mobileDiningOfferApi.getMine(selectedRequestId),
+      mobileDiningOfferApi.listRequestOffers(selectedRequestId),
+    ]);
+    setMyRequests((current) => [request, ...current.filter((item) => item.id !== request.id)]);
+    setRequestOffers(nextOffers);
   };
 
   const deleteRestaurant = async (restaurant: Restaurant) => {
@@ -310,16 +406,16 @@ export default function App() {
       content = <RoleSelectionScreen onContinue={continueWithRole} onSelect={setRole} roles={user.roles} selectedRole={role} />;
       break;
     case "userHome":
-      content = <UserHomeScreen offers={offers} onNavigate={navigate} onSelectRequest={(request) => openRequest(request)} requests={requests} />;
+      content = <UserHomeScreen offers={requestOffers} onNavigate={navigate} onSelectRequest={(request) => openRequest(request)} requests={myRequests} />;
       break;
     case "createRequest":
       content = <CreateRequestScreen onBack={() => goBack("userHome")} onSubmit={createRequest} />;
       break;
     case "requestWaiting":
-      content = <RequestWaitingScreen offers={offers} onBack={() => goBack("userHome")} onCancel={cancelRequest} onCompare={() => navigate("offers")} onRefresh={() => undefined} request={selectedRequest} />;
+      content = <RequestWaitingScreen offers={requestOffers} onBack={() => goBack("userHome")} onCancel={cancelRequest} onCompare={() => navigate("offers")} onRefresh={refreshSelectedRequest} request={selectedRequest} />;
       break;
     case "offers":
-      content = <OfferComparisonScreen offers={offers} onBack={() => goBack("requestWaiting")} onSelect={chooseOffer} request={selectedRequest} />;
+      content = <OfferComparisonScreen offers={requestOffers} onBack={() => goBack("requestWaiting")} onSelect={chooseOffer} request={selectedRequest} />;
       break;
     case "confirmation":
       content = <ReservationConfirmationScreen offer={selectedOffer} onHome={() => replace("userHome")} onReservations={() => replace("myReservation")} request={selectedRequest} reservation={selectedReservation} />;
@@ -337,16 +433,16 @@ export default function App() {
       content = <WriteReviewScreen onBack={() => goBack("myReservation")} onSubmit={submitReview} reservation={selectedReservation} />;
       break;
     case "ownerHome":
-      content = <OwnerHomeScreen offers={offers.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} onNavigate={navigate} onSelectRequest={(request) => openRequest(request, true)} requests={requests} reservations={reservations.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} />;
+      content = <OwnerHomeScreen offers={ownerOffers} onNavigate={navigate} onSelectRequest={(request) => openRequest(request, true)} requests={ownerRequests} reservations={reservations.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} />;
       break;
     case "ownerRequestDetail":
-      content = <OwnerRequestDetailScreen offers={offers.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} onBack={() => goBack("ownerHome")} onCreateOffer={() => navigate("createOffer")} request={selectedRequest} />;
+      content = <OwnerRequestDetailScreen offers={ownerOffers} onBack={() => goBack("ownerHome")} onCreateOffer={() => navigate("createOffer")} request={selectedRequest} />;
       break;
     case "createOffer":
-      content = <CreateOfferScreen onBack={() => goBack("ownerRequestDetail")} onSubmit={createOffer} request={selectedRequest} restaurants={ownerRestaurants} />;
+      content = <CreateOfferScreen onBack={() => goBack("ownerRequestDetail")} onSubmit={createOffer} request={selectedRequest} restaurants={offerRestaurants} />;
       break;
     case "ownerOffers":
-      content = <OwnerOfferListScreen offers={offers.filter((item) => ownerRestaurants.some((restaurant) => restaurant.id === item.restaurantId))} onSelectOffer={openOwnerOffer} requests={requests} />;
+      content = <OwnerOfferListScreen offers={ownerOffers} onSelectOffer={openOwnerOffer} requests={ownerRequests} />;
       break;
     case "ownerOfferDetail":
       content = <OwnerOfferDetailScreen offer={selectedOffer} onBack={() => goBack("ownerOffers")} request={selectedRequest} />;
@@ -381,7 +477,11 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
-      <View style={styles.content}>{content}</View>
+      <View style={styles.content}>
+        {remoteLoading ? <View style={styles.remoteNotice}><ActivityIndicator color={colors.primary} size="small" /><Text style={styles.remoteText}>서버 데이터 불러오는 중</Text></View> : null}
+        {remoteMessage ? <View style={styles.remoteError}><Text style={styles.remoteErrorText}>{remoteMessage}</Text></View> : null}
+        {content}
+      </View>
       {showNav ? <BottomNav active={screen} onNavigate={navigate} role={role} /> : null}
     </SafeAreaView>
   );
@@ -392,4 +492,8 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   restoring: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   restoringText: { color: colors.muted, fontSize: 14 },
+  remoteNotice: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 8, backgroundColor: colors.surface },
+  remoteText: { color: colors.muted, fontSize: 12 },
+  remoteError: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#FDECEC" },
+  remoteErrorText: { color: colors.danger, fontSize: 12, textAlign: "center" },
 });

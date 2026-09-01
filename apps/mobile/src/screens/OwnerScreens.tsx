@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Badge, Button, Card, Chip, ChipGroup, ConfirmModal, Counter, EmptyState, Field, InfoRow, InlineMessage, Page, SectionHeader, Tabs } from "../components/ui";
 import { colors, radius } from "../theme";
-import { DiningRequest, Navigate, Offer, OfferDraft, Reservation, Restaurant, RestaurantDraft } from "../types";
+import { DiningRequest, Navigate, Offer, OfferDraft, OfferRestaurant, Reservation, Restaurant, RestaurantDraft } from "../types";
 
 const money = (value: number) => `${value.toLocaleString("ko-KR")}원`;
 const requestLabel = (status: DiningRequest["status"]) => ({ open: "모집 중", reserved: "예약 확정", canceled: "취소", expired: "마감" })[status];
@@ -46,8 +46,8 @@ export function OwnerRequestDetailScreen({ request, offers, onBack, onCreateOffe
 
 function Stat({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) { return <View style={styles.stat}><Text style={[styles.statLabel, dark && styles.statLabelDark]}>{label}</Text><Text style={[styles.statValue, dark && styles.statValueDark]}>{value}</Text></View>; }
 
-export function CreateOfferScreen({ request, restaurants, onBack, onSubmit }: { request: DiningRequest | null; restaurants: Restaurant[]; onBack: () => void; onSubmit: (draft: OfferDraft) => void | Promise<void> }) {
-  const approved = restaurants.filter((restaurant) => restaurant.status === "approved");
+export function CreateOfferScreen({ request, restaurants, onBack, onSubmit }: { request: DiningRequest | null; restaurants: OfferRestaurant[]; onBack: () => void; onSubmit: (draft: OfferDraft) => void | Promise<void> }) {
+  const approved = restaurants;
   const [restaurantId, setRestaurantId] = useState(approved[0]?.id || ""); const [price, setPrice] = useState(""); const [time, setTime] = useState(request?.diningTime || ""); const [menu, setMenu] = useState(""); const [service, setService] = useState(""); const [seat, setSeat] = useState(""); const [comment, setComment] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({}); const [message, setMessage] = useState(""); const [submitting, setSubmitting] = useState(false);
   useEffect(() => { if (!restaurantId && approved[0]) setRestaurantId(approved[0].id); }, [approved, restaurantId]);
@@ -81,7 +81,7 @@ export function OwnerOfferListScreen({ offers, requests, onSelectOffer }: { offe
   return (
     <Page eyebrow="MY OFFERS" title="보낸 오퍼" subtitle="전송한 제안과 선택 결과를 확인하세요.">
       <Tabs items={[{ label: "전체", value: "all", count: offers.length }, { label: "대기", value: "pending", count: offers.filter((item) => item.status === "pending").length }, { label: "선택", value: "selected", count: offers.filter((item) => item.status === "selected").length }, { label: "종료", value: "closed" }]} onChange={setTab} value={tab} />
-      {filtered.length === 0 ? <EmptyState title="이 상태의 오퍼가 없습니다" /> : filtered.map((offer) => { const request = requests.find((item) => item.id === offer.diningRequestId); return <Card key={offer.id} onPress={() => onSelectOffer(offer)}><View style={styles.between}><Badge label={offerLabel(offer.status)} tone={tone(offer.status)} /><Text style={styles.hint}>#{offer.id}</Text></View><Text style={styles.cardTitle}>{request?.title || `회식 요청 #${offer.diningRequestId}`}</Text><Text style={styles.cardCopy}>{offer.restaurantName} · {offer.availableTime}</Text><View style={styles.between}><Text style={styles.offerMenu}>{offer.menuDescription}</Text><Text style={styles.price}>{money(offer.pricePerPerson)}</Text></View></Card>; })}
+      {filtered.length === 0 ? <EmptyState title="이 상태의 오퍼가 없습니다" /> : filtered.map((offer) => { const request = requests.find((item) => item.id === offer.diningRequestId); return <Card key={offer.id} onPress={() => onSelectOffer(offer)}><View style={styles.between}><Badge label={offerLabel(offer.status)} tone={tone(offer.status)} /><Text style={styles.hint}>#{offer.id}</Text></View><Text style={styles.cardTitle}>{request?.title || offer.requestTitle || `회식 요청 #${offer.diningRequestId}`}</Text><Text style={styles.cardCopy}>{offer.restaurantName} · {offer.availableTime}</Text><View style={styles.between}><Text style={styles.offerMenu}>{offer.menuDescription}</Text><Text style={styles.price}>{money(offer.pricePerPerson)}</Text></View></Card>; })}
     </Page>
   );
 }
@@ -90,7 +90,7 @@ export function OwnerOfferDetailScreen({ offer, request, onBack }: { offer: Offe
   if (!offer) return <Page back={onBack} title="보낸 오퍼 상세"><EmptyState title="오퍼를 찾을 수 없습니다" /></Page>;
   return (
     <Page back={onBack} eyebrow={`OFFER #${offer.id}`} title="보낸 오퍼 상세" subtitle="전송한 제안 내용과 상태를 확인하세요.">
-      <Card><View style={styles.between}><Badge label={offerLabel(offer.status)} tone={tone(offer.status)} /><Text style={styles.hint}>{offer.createdAt.slice(0, 10)}</Text></View><Text style={styles.cardTitle}>{request?.title || `회식 요청 #${offer.diningRequestId}`}</Text><Text style={styles.cardCopy}>{request ? `${request.diningDate} ${request.diningTime} · ${request.region}` : "요청 정보"}</Text></Card>
+      <Card><View style={styles.between}><Badge label={offerLabel(offer.status)} tone={tone(offer.status)} /><Text style={styles.hint}>{offer.createdAt.slice(0, 10)}</Text></View><Text style={styles.cardTitle}>{request?.title || offer.requestTitle || `회식 요청 #${offer.diningRequestId}`}</Text><Text style={styles.cardCopy}>{request ? `${request.diningDate} ${request.diningTime} · ${request.region}` : offer.requestDiningDate ? `${offer.requestDiningDate} ${offer.requestDiningTime || ""} · ${offer.requestRegion || ""}` : "요청 정보"}</Text></Card>
       {offer.status === "selected" ? <InlineMessage message="고객이 이 오퍼를 선택해 예약이 확정되었습니다." tone="success" /> : offer.status === "pending" ? <InlineMessage message="고객의 선택을 기다리고 있습니다." /> : <InlineMessage message="선택이 종료된 오퍼입니다." />}
       <Card><InfoRow label="식당" value={offer.restaurantName} /><InfoRow label="제안 가격" value={`1인 ${money(offer.pricePerPerson)}`} /><InfoRow label="예약 시간" value={offer.availableTime} /><InfoRow label="메뉴" value={offer.menuDescription} /><InfoRow label="서비스" value={offer.serviceDescription || "없음"} /><InfoRow label="좌석" value={offer.seatDescription || "별도 안내 없음"} /><InfoRow label="코멘트" value={offer.ownerComment || "없음"} last /></Card>
       <Button label="목록으로" onPress={onBack} variant="secondary" />
