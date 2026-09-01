@@ -43,7 +43,7 @@ export interface UserProfile {
 export type DiningRequestStatus = "open" | "reserved" | "canceled" | "expired";
 
 export interface DiningRequest {
-  id: number;
+  id: string;
   title: string;
   diningDate: string;
   diningTime: string;
@@ -55,6 +55,7 @@ export interface DiningRequest {
   memo: string;
   status: DiningRequestStatus;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface DiningRequestDraft {
@@ -72,8 +73,8 @@ export interface DiningRequestDraft {
 export type OfferStatus = "pending" | "selected" | "rejected" | "canceled" | "expired";
 
 export interface Offer {
-  id: number;
-  diningRequestId: number;
+  id: string;
+  diningRequestId: string;
   restaurantId: string;
   restaurantName: string;
   restaurantAddress: string;
@@ -84,7 +85,16 @@ export interface Offer {
   availableTime: string;
   ownerComment: string;
   status: OfferStatus;
+  expiresAt?: string;
   createdAt: string;
+  updatedAt?: string;
+  requestTitle?: string;
+  requestDiningDate?: string;
+  requestDiningTime?: string;
+  requestHeadCount?: number;
+  requestRegion?: string;
+  requestBudgetPerPerson?: number;
+  requestStatus?: DiningRequestStatus;
 }
 
 export interface OfferDraft {
@@ -95,6 +105,12 @@ export interface OfferDraft {
   seatDescription: string;
   availableTime: string;
   ownerComment: string;
+}
+
+export interface OfferRestaurant {
+  id: string;
+  name: string;
+  address: string;
 }
 
 export type RestaurantStatus = "pending" | "approved" | "suspended";
@@ -144,6 +160,8 @@ export interface Reservation {
   userPhone: string;
   createdAt: string;
   reviewed?: boolean;
+  diningRequestId?: string;
+  offerId?: string;
 }
 
 export interface ReservationDraft {
