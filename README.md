@@ -34,6 +34,7 @@ apps/
 ```bash
 npm install
 cp apps/api/.env.example apps/api/.env
+cp apps/mobile/.env.example apps/mobile/.env
 ```
 
 ## PostgreSQL 실행
@@ -83,6 +84,14 @@ http://localhost:5173
 
 ## Mobile 실행
 
+실제 휴대전화의 Expo Go에서 실행할 때는 `apps/mobile/.env`의 API 주소를 개발 PC의 LAN IP로 설정합니다.
+
+```dotenv
+EXPO_PUBLIC_API_BASE_URL=http://192.168.0.10:3000
+```
+
+Android 에뮬레이터는 환경 변수가 없으면 `http://10.0.2.2:3000`, iOS 시뮬레이터는 `http://localhost:3000`을 기본으로 사용합니다.
+
 ```bash
 npm run dev:mobile
 ```
@@ -94,6 +103,7 @@ Expo가 출력하는 QR 또는 에뮬레이터 옵션으로 실행합니다.
 ```bash
 npm run build:api
 npm run build:web
+npm run typecheck:mobile
 npm test
 ```
 

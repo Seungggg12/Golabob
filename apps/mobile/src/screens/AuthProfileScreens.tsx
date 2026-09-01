@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ApiRequestError } from "../api";
 import { Badge, Button, Card, ConfirmModal, Field, InfoRow, InlineMessage, MenuRow, Page } from "../components/ui";
 import { colors, radius, spacing } from "../theme";
 import { Navigate, Role, UserProfile } from "../types";
@@ -34,7 +35,7 @@ export function SplashScreen({ onStart, onLogin, onSignup }: { onStart: () => vo
 
 type LoginValues = { email: string; password: string; rememberLogin: boolean };
 
-export function LoginScreen({ onBack, onSignup, onSubmit }: { onBack: () => void; onSignup: () => void; onSubmit: (values: LoginValues) => void | Promise<void> }) {
+export function LoginScreen({ notice = "", onBack, onSignup, onSubmit }: { notice?: string; onBack: () => void; onSignup: () => void; onSubmit: (values: LoginValues) => void | Promise<void> }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberLogin, setRememberLogin] = useState(true);
@@ -42,6 +43,8 @@ export function LoginScreen({ onBack, onSignup, onSubmit }: { onBack: () => void
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { setMessage(notice); }, [notice]);
 
   const submit = async () => {
     const nextErrors: Record<string, string> = {};
@@ -54,7 +57,12 @@ export function LoginScreen({ onBack, onSignup, onSubmit }: { onBack: () => void
     try {
       await onSubmit({ email: email.trim(), password, rememberLogin });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "로그인하지 못했습니다.");
+      if (error instanceof ApiRequestError && error.status === 401) {
+        setErrors((current) => ({ ...current, password: error.message }));
+        setMessage("입력한 정보를 다시 확인해주세요.");
+      } else {
+        setMessage(error instanceof Error ? error.message : "로그인하지 못했습니다.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -62,8 +70,8 @@ export function LoginScreen({ onBack, onSignup, onSubmit }: { onBack: () => void
 
   return (
     <Page back={onBack} eyebrow="WELCOME BACK" title="다시 만나 반가워요" subtitle="가입한 계정으로 로그인해주세요.">
-      <Field autoCapitalize="none" autoComplete="email" error={errors.email} keyboardType="email-address" label="이메일" onChangeText={(value) => { setEmail(value); setErrors((current) => ({ ...current, email: "" })); }} placeholder="name@example.com" value={email} />
-      <Field autoCapitalize="none" error={errors.password} label="비밀번호" onChangeText={(value) => { setPassword(value); setErrors((current) => ({ ...current, password: "" })); }} onSubmitEditing={() => void submit()} placeholder="8자 이상 입력해주세요" secureTextEntry={!showPassword} value={password} />
+      <Field autoCapitalize="none" autoComplete="email" error={errors.email} keyboardType="email-address" label="이메일" onChangeText={(value) => { setEmail(value); setMessage(""); setErrors((current) => ({ ...current, email: "" })); }} placeholder="name@example.com" value={email} />
+      <Field autoCapitalize="none" error={errors.password} label="비밀번호" onChangeText={(value) => { setPassword(value); setMessage(""); setErrors((current) => ({ ...current, password: "" })); }} onSubmitEditing={() => void submit()} placeholder="8자 이상 입력해주세요" secureTextEntry={!showPassword} value={password} />
       <View style={styles.authOptions}>
         <TouchableOpacity onPress={() => setRememberLogin((current) => !current)} style={styles.checkRow}>
           <View style={[styles.checkbox, rememberLogin && styles.checkboxSelected]}><Text style={styles.checkmark}>{rememberLogin ? "✓" : ""}</Text></View>
@@ -113,17 +121,23 @@ export function SignupScreen({ onBack, onLogin, onSubmit }: { onBack: () => void
     try {
       await onSubmit({ name: name.trim(), email: email.trim(), phone: phone.trim(), password, marketingConsent });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "회원가입하지 못했습니다.");
+      if (error instanceof ApiRequestError && error.status === 409) {
+        const field = error.message.includes("전화") ? "phone" : "email";
+        setErrors((current) => ({ ...current, [field]: error.message }));
+        setMessage("이미 사용 중인 정보를 확인해주세요.");
+      } else {
+        setMessage(error instanceof Error ? error.message : "회원가입하지 못했습니다.");
+      }
     } finally { setSubmitting(false); }
   };
 
   return (
     <Page back={onBack} eyebrow="JOIN GOLABOB" title="회원가입" subtitle="필수 정보를 입력하고 골라밥을 시작하세요.">
-      <Field error={errors.name} label="이름" onChangeText={setName} placeholder="이름을 입력해주세요" value={name} />
-      <Field autoCapitalize="none" error={errors.email} keyboardType="email-address" label="이메일" onChangeText={setEmail} placeholder="name@example.com" value={email} />
-      <Field error={errors.phone} keyboardType="phone-pad" label="휴대전화" onChangeText={setPhone} placeholder="010-0000-0000" value={phone} />
-      <Field error={errors.password} label="비밀번호" onChangeText={setPassword} placeholder="8자 이상 입력해주세요" secureTextEntry value={password} />
-      <Field error={errors.confirmation} label="비밀번호 확인" onChangeText={setConfirmation} placeholder="비밀번호를 다시 입력해주세요" secureTextEntry value={confirmation} />
+      <Field error={errors.name} label="이름" onChangeText={(value) => { setName(value); setErrors((current) => ({ ...current, name: "" })); }} placeholder="이름을 입력해주세요" value={name} />
+      <Field autoCapitalize="none" error={errors.email} keyboardType="email-address" label="이메일" onChangeText={(value) => { setEmail(value); setMessage(""); setErrors((current) => ({ ...current, email: "" })); }} placeholder="name@example.com" value={email} />
+      <Field error={errors.phone} keyboardType="phone-pad" label="휴대전화" onChangeText={(value) => { setPhone(value); setMessage(""); setErrors((current) => ({ ...current, phone: "" })); }} placeholder="010-0000-0000" value={phone} />
+      <Field error={errors.password} label="비밀번호" onChangeText={(value) => { setPassword(value); setErrors((current) => ({ ...current, password: "" })); }} placeholder="8자 이상 입력해주세요" secureTextEntry value={password} />
+      <Field error={errors.confirmation} label="비밀번호 확인" onChangeText={(value) => { setConfirmation(value); setErrors((current) => ({ ...current, confirmation: "" })); }} placeholder="비밀번호를 다시 입력해주세요" secureTextEntry value={confirmation} />
       <Card>
         <AgreementRow checked={serviceTerms && privacyPolicy && marketingConsent} label="전체 동의" onPress={toggleAll} strong />
         <View style={styles.divider} />
@@ -187,7 +201,13 @@ export function MyPageScreen({ user, role, onNavigate, onUpdateProfile, onActiva
     setErrors(nextErrors); if (Object.keys(nextErrors).length) return;
     setSaving(true); setMessage("");
     try { await onUpdateProfile({ name: name.trim(), email: email.trim(), phone: phone.trim() }); setEditing(false); setMessage("프로필을 저장했습니다."); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "프로필을 저장하지 못했습니다."); }
+    catch (error) {
+      if (error instanceof ApiRequestError && error.status === 409) {
+        const field = error.message.includes("전화") ? "phone" : "email";
+        setErrors((current) => ({ ...current, [field]: error.message }));
+      }
+      setMessage(error instanceof Error ? error.message : "프로필을 저장하지 못했습니다.");
+    }
     finally { setSaving(false); }
   };
 
@@ -200,8 +220,8 @@ export function MyPageScreen({ user, role, onNavigate, onUpdateProfile, onActiva
 
   return (
     <Page eyebrow="ACCOUNT" title="마이페이지" subtitle="내 정보와 활동을 관리하세요.">
-      <View style={styles.profileCard}><View style={styles.avatar}><Text style={styles.avatarText}>{user.name.slice(0, 1)}</Text></View><View style={styles.profileBody}><Text style={styles.profileName}>{user.name}</Text><Text style={styles.profileEmail}>{user.email}</Text></View><Badge label={role === "owner" ? "사장님" : "예약자"} tone="accent" /></View>
-      {!editing ? <Card><InfoRow label="휴대전화" value={user.phone} /><InfoRow label="이메일 인증" value={user.emailVerified ? "인증 완료" : "인증 필요"} /><InfoRow label="휴대전화 인증" value={user.phoneVerified ? "인증 완료" : "준비 중"} /><InfoRow label="가입일" value={user.joinedAt} last /><Button label="프로필 수정" onPress={() => setEditing(true)} variant="secondary" /></Card> : <Card><Field error={errors.name} label="이름" onChangeText={setName} value={name} /><Field autoCapitalize="none" error={errors.email} keyboardType="email-address" label="이메일" onChangeText={setEmail} value={email} /><Field error={errors.phone} keyboardType="phone-pad" label="휴대전화" onChangeText={setPhone} value={phone} /><View style={styles.twoButtons}><View style={styles.flex}><Button label="취소" onPress={() => { setEditing(false); setName(user.name); setEmail(user.email); setPhone(user.phone); }} variant="secondary" /></View><View style={styles.flex}><Button label="저장" loading={saving} onPress={() => void save()} /></View></View></Card>}
+      <View style={styles.profileCard}><View style={styles.avatar}><Text style={styles.avatarText}>{user.name.slice(0, 1)}</Text></View><View style={styles.profileBody}><Text style={styles.profileName}>{user.name}</Text><Text style={styles.profileEmail}>{user.maskedEmail || user.email}</Text></View><Badge label={role === "owner" ? "사장님" : "예약자"} tone="accent" /></View>
+      {!editing ? <Card><InfoRow label="휴대전화" value={user.maskedPhone || user.phone} /><InfoRow label="계정 상태" value={user.status === "active" ? "정상" : user.status || "정상"} /><InfoRow label="이메일 인증" value={user.emailVerified ? "인증 완료" : "인증 필요"} /><InfoRow label="휴대전화 인증" value={user.phoneVerified ? "인증 완료" : "준비 중"} /><InfoRow label="가입일" value={user.joinedAt || "정보 없음"} last /><Button label="프로필 수정" onPress={() => setEditing(true)} variant="secondary" /></Card> : <Card><Field error={errors.name} label="이름" onChangeText={(value) => { setName(value); setErrors((current) => ({ ...current, name: "" })); }} value={name} /><Field autoCapitalize="none" error={errors.email} keyboardType="email-address" label="이메일" onChangeText={(value) => { setEmail(value); setErrors((current) => ({ ...current, email: "" })); }} value={email} /><Field error={errors.phone} keyboardType="phone-pad" label="휴대전화" onChangeText={(value) => { setPhone(value); setErrors((current) => ({ ...current, phone: "" })); }} value={phone} /><View style={styles.twoButtons}><View style={styles.flex}><Button label="취소" onPress={() => { setEditing(false); setName(user.name); setEmail(user.email); setPhone(user.phone); setErrors({}); }} variant="secondary" /></View><View style={styles.flex}><Button label="저장" loading={saving} onPress={() => void save()} /></View></View></Card>}
       {message ? <InlineMessage message={message} tone={message.includes("못") ? "error" : "success"} /> : null}
       <View style={styles.modeCard}><View style={styles.modeText}><Text style={styles.modeTitle}>현재 {role === "owner" ? "사장님" : "예약자"} 모드</Text><Text style={styles.modeDescription}>{user.roles.includes(role === "owner" ? "user" : "owner") ? "다른 모드로 바로 전환할 수 있어요." : "사장님 모드를 활성화하면 오퍼를 보낼 수 있어요."}</Text></View>{user.roles.includes("owner") ? <Button compact label={role === "owner" ? "예약자 모드" : "사장님 모드"} onPress={() => onSwitchRole(role === "owner" ? "user" : "owner")} variant="secondary" /> : <Button compact label="사장님 전환" onPress={() => setOwnerVisible(true)} variant="secondary" />}</View>
       <Text style={styles.activityTitle}>내 활동</Text>

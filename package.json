@@ -13,9 +13,13 @@
     "migrate:status:api": "npm --workspace @golabob/api run migrate:status",
     "build:api": "npm --workspace @golabob/api run build",
     "build:web": "npm --workspace @golabob/web run build",
+    "typecheck:mobile": "npm --workspace @golabob/mobile run typecheck",
     "test": "npm --workspace @golabob/api test"
   },
   "devDependencies": {
-    "@nestjs/platform-express": "^11.1.27"
+    "@nestjs/platform-express": "^11.1.27",
+    "expo": "~54.0.35",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   }
 }

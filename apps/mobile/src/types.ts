@@ -31,10 +31,13 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
+  maskedEmail?: string;
+  maskedPhone?: string;
+  status?: "active" | "suspended" | "withdrawn";
   roles: Role[];
   emailVerified: boolean;
   phoneVerified: boolean;
-  joinedAt: string;
+  joinedAt?: string;
 }
 
 export type DiningRequestStatus = "open" | "reserved" | "canceled" | "expired";
