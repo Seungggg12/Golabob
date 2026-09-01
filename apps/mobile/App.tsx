@@ -1,5 +1,15 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler, SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
+import { ActivityIndicator, BackHandler, SafeAreaView, StatusBar, StyleSheet, Text, View } from "react-native";
+import {
+  clearStoredSession,
+  mobileAuthApi,
+  replaceAccessToken,
+  restoreAccessToken,
+  restoreActiveRole,
+  setUnauthorizedHandler,
+  storeAccessToken,
+  storeActiveRole,
+} from "./src/api";
 import { BottomNav } from "./src/components/navigation";
 import { LoginScreen, MyPageScreen, RoleSelectionScreen, SignupScreen, SplashScreen } from "./src/screens/AuthProfileScreens";
 import { CreateOfferScreen, MyRestaurantsScreen, OwnerHomeScreen, OwnerOfferDetailScreen, OwnerOfferListScreen, OwnerRequestDetailScreen, OwnerReservationsScreen, RestaurantFormScreen } from "./src/screens/OwnerScreens";
@@ -12,15 +22,12 @@ const authenticatedScreens = new Set<AppScreen>([
   "roleSelection", "userHome", "createRequest", "requestWaiting", "offers", "confirmation", "restaurantList", "restaurantDetail", "myReservation", "writeReview", "ownerHome", "ownerRequestDetail", "createOffer", "ownerOffers", "ownerOfferDetail", "myRestaurants", "restaurantRegister", "ownerReservations", "myPage",
 ]);
 
-/**
- * Mobile UI state is intentionally backed by in-memory data for now.
- * Every mutation below is the API integration boundary: replace its local
- * state update with the matching HTTP call, then keep the same screen props.
- */
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>("splash");
   const [history, setHistory] = useState<AppScreen[]>([]);
   const [signedIn, setSignedIn] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(true);
+  const [sessionMessage, setSessionMessage] = useState("");
   const [role, setRole] = useState<Role>("user");
   const [user, setUser] = useState<UserProfile>(mockUser);
   const [requests, setRequests] = useState<DiningRequest[]>(mockRequests);
@@ -55,6 +62,49 @@ export default function App() {
     setScreen(next);
   }, []);
 
+  const endSession = useCallback(async (message = "") => {
+    await clearStoredSession();
+    setSignedIn(false);
+    setRole("user");
+    setSessionMessage(message);
+    replace(message ? "login" : "splash");
+  }, [replace]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => endSession("로그인이 만료되었습니다. 다시 로그인해주세요."));
+    return () => setUnauthorizedHandler(null);
+  }, [endSession]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const restoreSession = async () => {
+      try {
+        const token = await restoreAccessToken();
+        if (!token) return;
+        const [restoredUser, storedRole] = await Promise.all([
+          mobileAuthApi.me(),
+          restoreActiveRole(),
+        ]);
+        if (cancelled) return;
+        const nextRole = storedRole && restoredUser.roles.includes(storedRole)
+          ? storedRole
+          : restoredUser.roles.includes("user") ? "user" : restoredUser.roles[0] || "user";
+        setUser(restoredUser);
+        setRole(nextRole);
+        setSignedIn(true);
+        replace(nextRole === "owner" ? "ownerHome" : "userHome");
+      } catch {
+        if (!cancelled) {
+          await endSession("저장된 로그인 정보를 확인하지 못했습니다. 다시 로그인해주세요.");
+        }
+      } finally {
+        if (!cancelled) setRestoringSession(false);
+      }
+    };
+    void restoreSession();
+    return () => { cancelled = true; };
+  }, [endSession, replace]);
+
   const goBack = useCallback((fallback: AppScreen = role === "owner" ? "ownerHome" : "userHome") => {
     setHistory((current) => {
       const nextHistory = [...current];
@@ -73,38 +123,57 @@ export default function App() {
     return () => subscription.remove();
   }, [goBack, screen]);
 
-  const login = async ({ email }: { email: string; password: string; rememberLogin: boolean }) => {
-    setUser((current) => ({ ...current, email }));
+  const login = async ({ email, password, rememberLogin }: { email: string; password: string; rememberLogin: boolean }) => {
+    const result = await mobileAuthApi.login(email, password);
+    await storeAccessToken(result.accessToken, rememberLogin);
+    const nextRole = result.user.roles.includes("user") ? "user" : result.user.roles[0] || "user";
+    await storeActiveRole(nextRole);
+    setUser(result.user);
     setSignedIn(true);
-    setRole(user.roles.includes("user") ? "user" : user.roles[0] || "user");
+    setRole(nextRole);
+    setSessionMessage("");
     replace("roleSelection");
   };
 
-  const signup = async ({ name, email, phone }: { name: string; email: string; phone: string; password: string; marketingConsent: boolean }) => {
-    setUser({ id: `user-${Date.now()}`, name, email, phone, roles: ["user"], emailVerified: false, phoneVerified: false, joinedAt: new Date().toISOString().slice(0, 10) });
+  const signup = async (input: { name: string; email: string; phone: string; password: string; marketingConsent: boolean }) => {
+    const result = await mobileAuthApi.signup(input);
+    await storeAccessToken(result.accessToken, true);
+    await storeActiveRole("user");
+    setUser(result.user);
     setSignedIn(true);
     setRole("user");
+    setSessionMessage("");
     replace("roleSelection");
   };
 
-  const continueWithRole = () => replace(role === "owner" ? "ownerHome" : "userHome");
+  const continueWithRole = () => {
+    void storeActiveRole(role);
+    replace(role === "owner" ? "ownerHome" : "userHome");
+  };
 
   const switchRole = (nextRole: Role) => {
     if (!user.roles.includes(nextRole)) return;
+    void storeActiveRole(nextRole);
     setRole(nextRole);
     replace(nextRole === "owner" ? "ownerHome" : "userHome");
   };
 
   const activateOwner = async () => {
-    setUser((current) => current.roles.includes("owner") ? current : { ...current, roles: [...current.roles, "owner"] });
+    const result = await mobileAuthApi.activateOwner();
+    await replaceAccessToken(result.accessToken);
+    await storeActiveRole("owner");
+    setUser(result.user);
     setRole("owner");
     replace("ownerHome");
   };
 
-  const logout = () => {
-    setSignedIn(false);
-    setRole("user");
-    replace("splash");
+  const logout = async () => {
+    await endSession();
+  };
+
+  const updateProfile = async (profile: Pick<UserProfile, "name" | "email" | "phone">) => {
+    const updatedUser = await mobileAuthApi.updateMe(profile);
+    setUser(updatedUser);
   };
 
   const createRequest = async (draft: DiningRequestDraft) => {
@@ -232,7 +301,7 @@ export default function App() {
       content = <SplashScreen onLogin={() => navigate("login")} onSignup={() => navigate("signup")} onStart={() => navigate("login")} />;
       break;
     case "login":
-      content = <LoginScreen onBack={() => goBack("splash")} onSignup={() => navigate("signup")} onSubmit={login} />;
+      content = <LoginScreen notice={sessionMessage} onBack={() => goBack("splash")} onSignup={() => navigate("signup")} onSubmit={login} />;
       break;
     case "signup":
       content = <SignupScreen onBack={() => goBack("splash")} onLogin={() => navigate("login")} onSubmit={signup} />;
@@ -292,13 +361,23 @@ export default function App() {
       content = <OwnerReservationsScreen onConfirm={(reservation) => updateReservationStatus(reservation, "confirmed")} onReject={(reservation) => updateReservationStatus(reservation, "rejected")} reservations={reservations} restaurants={ownerRestaurants} />;
       break;
     case "myPage":
-      content = <MyPageScreen onActivateOwner={activateOwner} onLogout={logout} onNavigate={navigate} onSwitchRole={switchRole} onUpdateProfile={async (profile) => setUser((current) => ({ ...current, ...profile }))} role={role} user={user} />;
+      content = <MyPageScreen onActivateOwner={activateOwner} onLogout={() => void logout()} onNavigate={navigate} onSwitchRole={switchRole} onUpdateProfile={updateProfile} role={role} user={user} />;
       break;
     default:
       content = null;
   }
 
   const showNav = signedIn && authenticatedScreens.has(screen) && screen !== "roleSelection";
+  if (restoringSession) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.restoring}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.restoringText}>로그인 상태를 확인하고 있어요.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
@@ -311,4 +390,6 @@ export default function App() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { flex: 1 },
+  restoring: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  restoringText: { color: colors.muted, fontSize: 14 },
 });
