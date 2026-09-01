@@ -1,6 +1,17 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { Role, UserProfile } from "./types";
+import {
+  DiningRequest,
+  DiningRequestDraft,
+  DiningRequestStatus,
+  Offer,
+  OfferDraft,
+  OfferRestaurant,
+  OfferStatus,
+  Reservation,
+  Role,
+  UserProfile,
+} from "./types";
 
 const accessTokenKey = "golabob.accessToken";
 const activeRoleKey = "golabob.activeRole";
@@ -185,5 +196,191 @@ export const mobileAuthApi = {
   async activateOwner() {
     const result = await requestJson<AuthResponse>("/api/auth/owner-role", { method: "POST" });
     return { accessToken: result.accessToken, user: toUserProfile(result.user) };
+  },
+};
+
+interface ApiDiningRequest {
+  id: string;
+  title: string;
+  diningDate: string;
+  diningTime: string;
+  headCount: number;
+  region: string;
+  budgetPerPerson: number;
+  preferredMenu: string | null;
+  requiredOptions: string | null;
+  memo: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiOffer {
+  id: string;
+  diningRequestId: string;
+  restaurantId: string;
+  restaurantName?: string;
+  restaurantAddress?: string;
+  pricePerPerson: number;
+  menuDescription: string;
+  serviceDescription: string | null;
+  seatDescription: string | null;
+  availableTime: string;
+  ownerComment: string | null;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  requestTitle?: string;
+  requestDiningDate?: string;
+  requestDiningTime?: string;
+  requestHeadCount?: number;
+  requestRegion?: string;
+  requestBudgetPerPerson?: number;
+  requestStatus?: string;
+}
+
+interface ApiReservation {
+  id: string;
+  restaurantId: string;
+  diningRequestId: string;
+  offerId: string;
+  reservationDate: string;
+  reservationTime: string;
+  headCount: number;
+  requestMemo: string | null;
+  status: string;
+  createdAt: string;
+}
+
+const normalizeDate = (value: string) => /^\d{4}-\d{2}-\d{2}/.exec(value)?.[0] || value;
+const normalizeTime = (value: string) => value.length >= 5 ? value.slice(0, 5) : value;
+const requestStatus = (value: string): DiningRequestStatus =>
+  ["open", "reserved", "canceled", "expired"].includes(value) ? value as DiningRequestStatus : "expired";
+const offerStatus = (value: string): OfferStatus =>
+  ["pending", "selected", "rejected", "canceled", "expired"].includes(value) ? value as OfferStatus : "expired";
+
+function toDiningRequest(item: ApiDiningRequest): DiningRequest {
+  return {
+    id: String(item.id),
+    title: item.title,
+    diningDate: normalizeDate(item.diningDate),
+    diningTime: normalizeTime(item.diningTime),
+    headCount: item.headCount,
+    region: item.region,
+    budgetPerPerson: item.budgetPerPerson,
+    preferredMenu: item.preferredMenu || "",
+    requiredOptions: item.requiredOptions?.split(",").map((value) => value.trim()).filter(Boolean) || [],
+    memo: item.memo || "",
+    status: requestStatus(item.status),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
+function toOffer(item: ApiOffer): Offer {
+  return {
+    id: String(item.id),
+    diningRequestId: String(item.diningRequestId),
+    restaurantId: item.restaurantId,
+    restaurantName: item.restaurantName || `식당 #${item.restaurantId.slice(0, 8)}`,
+    restaurantAddress: item.restaurantAddress || "식당 주소 정보 없음",
+    pricePerPerson: item.pricePerPerson,
+    menuDescription: item.menuDescription,
+    serviceDescription: item.serviceDescription || "",
+    seatDescription: item.seatDescription || "",
+    availableTime: normalizeTime(item.availableTime),
+    ownerComment: item.ownerComment || "",
+    status: offerStatus(item.status),
+    expiresAt: item.expiresAt || undefined,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    requestTitle: item.requestTitle,
+    requestDiningDate: item.requestDiningDate ? normalizeDate(item.requestDiningDate) : undefined,
+    requestDiningTime: item.requestDiningTime ? normalizeTime(item.requestDiningTime) : undefined,
+    requestHeadCount: item.requestHeadCount,
+    requestRegion: item.requestRegion,
+    requestBudgetPerPerson: item.requestBudgetPerPerson,
+    requestStatus: item.requestStatus ? requestStatus(item.requestStatus) : undefined,
+  };
+}
+
+const requestPayload = (draft: DiningRequestDraft) => ({
+  ...draft,
+  preferredMenu: draft.preferredMenu || undefined,
+  requiredOptions: draft.requiredOptions.join(", ") || undefined,
+  memo: draft.memo || undefined,
+});
+
+const offerPayload = (draft: OfferDraft) => ({
+  ...draft,
+  serviceDescription: draft.serviceDescription || undefined,
+  seatDescription: draft.seatDescription || undefined,
+  ownerComment: draft.ownerComment || undefined,
+});
+
+export const mobileDiningOfferApi = {
+  async listMine() {
+    return (await requestJson<ApiDiningRequest[]>("/api/dining-requests/me?limit=100")).map(toDiningRequest);
+  },
+  async getMine(requestId: string) {
+    return toDiningRequest(await requestJson<ApiDiningRequest>(`/api/dining-requests/${requestId}`));
+  },
+  async createRequest(draft: DiningRequestDraft) {
+    return toDiningRequest(await requestJson<ApiDiningRequest>("/api/dining-requests", {
+      method: "POST",
+      body: JSON.stringify(requestPayload(draft)),
+    }));
+  },
+  async cancelRequest(requestId: string) {
+    return toDiningRequest(await requestJson<ApiDiningRequest>(`/api/dining-requests/${requestId}/cancel`, { method: "PATCH" }));
+  },
+  async listRequestOffers(requestId: string) {
+    return (await requestJson<ApiOffer[]>(`/api/dining-requests/${requestId}/offers?limit=100`)).map(toOffer);
+  },
+  async selectOffer(requestId: string, offerId: string, user: UserProfile) {
+    const result = await requestJson<{ offer: ApiOffer; reservation: ApiReservation }>(
+      `/api/dining-requests/${requestId}/offers/${offerId}/select`,
+      { method: "POST" },
+    );
+    const offer = toOffer(result.offer);
+    const reservation: Reservation = {
+      id: result.reservation.id,
+      restaurantId: result.reservation.restaurantId,
+      restaurantName: offer.restaurantName,
+      reservationDate: normalizeDate(result.reservation.reservationDate),
+      reservationTime: normalizeTime(result.reservation.reservationTime),
+      headCount: result.reservation.headCount,
+      requestMemo: result.reservation.requestMemo || "",
+      status: result.reservation.status === "confirmed" ? "confirmed" : "pending",
+      source: "offer",
+      userName: user.name,
+      userPhone: user.phone,
+      createdAt: result.reservation.createdAt,
+      diningRequestId: result.reservation.diningRequestId,
+      offerId: result.reservation.offerId,
+    };
+    return { offer, reservation };
+  },
+  async listOwnerRequests() {
+    return (await requestJson<ApiDiningRequest[]>("/api/owner/dining-requests?limit=100")).map(toDiningRequest);
+  },
+  async getOwnerRequest(requestId: string) {
+    return toDiningRequest(await requestJson<ApiDiningRequest>(`/api/owner/dining-requests/${requestId}`));
+  },
+  async listOwnerOffers() {
+    return (await requestJson<ApiOffer[]>("/api/owner/offers?limit=100")).map(toOffer);
+  },
+  async getOwnerOffer(offerId: string) {
+    return toOffer(await requestJson<ApiOffer>(`/api/owner/offers/${offerId}`));
+  },
+  async listOfferRestaurants() {
+    return requestJson<OfferRestaurant[]>("/api/owner/offers/restaurants");
+  },
+  async createOffer(requestId: string, draft: OfferDraft) {
+    return toOffer(await requestJson<ApiOffer>(`/api/dining-requests/${requestId}/offers`, {
+      method: "POST",
+      body: JSON.stringify(offerPayload(draft)),
+    }));
   },
 };

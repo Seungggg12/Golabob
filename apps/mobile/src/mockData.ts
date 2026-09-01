@@ -13,7 +13,7 @@ export const mockUser: UserProfile = {
 
 export const mockRequests: DiningRequest[] = [
   {
-    id: 101,
+    id: "101",
     title: "강남 개발팀 회식",
     diningDate: "2026-08-28",
     diningTime: "19:00",
@@ -27,7 +27,7 @@ export const mockRequests: DiningRequest[] = [
     createdAt: "2026-08-24T09:30:00+09:00",
   },
   {
-    id: 102,
+    id: "102",
     title: "성수 디자인팀 네트워킹",
     diningDate: "2026-09-03",
     diningTime: "19:30",
@@ -41,7 +41,7 @@ export const mockRequests: DiningRequest[] = [
     createdAt: "2026-08-25T13:10:00+09:00",
   },
   {
-    id: 103,
+    id: "103",
     title: "여의도 영업팀 월말 회식",
     diningDate: "2026-08-20",
     diningTime: "18:30",
@@ -125,8 +125,8 @@ export const mockRestaurants: Restaurant[] = [
 
 export const mockOffers: Offer[] = [
   {
-    id: 2001,
-    diningRequestId: 101,
+    id: "2001",
+    diningRequestId: "101",
     restaurantId: "restaurant-004",
     restaurantName: "역삼 고기마당",
     restaurantAddress: "서울 강남구 논현로 88",
@@ -140,8 +140,8 @@ export const mockOffers: Offer[] = [
     createdAt: "2026-08-25T14:00:00+09:00",
   },
   {
-    id: 2002,
-    diningRequestId: 101,
+    id: "2002",
+    diningRequestId: "101",
     restaurantId: "restaurant-002",
     restaurantName: "여의도 바다한상",
     restaurantAddress: "서울 영등포구 국제금융로 42",
@@ -155,8 +155,8 @@ export const mockOffers: Offer[] = [
     createdAt: "2026-08-25T15:40:00+09:00",
   },
   {
-    id: 2003,
-    diningRequestId: 101,
+    id: "2003",
+    diningRequestId: "101",
     restaurantId: "restaurant-001",
     restaurantName: "강남 화로정",
     restaurantAddress: "서울 강남구 테헤란로 123",
