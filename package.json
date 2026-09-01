@@ -17,5 +17,9 @@
   },
   "devDependencies": {
     "@nestjs/platform-express": "^11.1.27"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }
