@@ -31,19 +31,19 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  maskedEmail?: string;
-  maskedPhone?: string;
-  status?: "active" | "suspended" | "withdrawn";
   roles: Role[];
   emailVerified: boolean;
   phoneVerified: boolean;
-  joinedAt?: string;
+  joinedAt: string;
+  maskedEmail?: string;
+  maskedPhone?: string;
+  status?: string;
 }
 
 export type DiningRequestStatus = "open" | "reserved" | "canceled" | "expired";
 
 export interface DiningRequest {
-  id: string;
+  id: number;
   title: string;
   diningDate: string;
   diningTime: string;
@@ -55,7 +55,6 @@ export interface DiningRequest {
   memo: string;
   status: DiningRequestStatus;
   createdAt: string;
-  updatedAt?: string;
 }
 
 export interface DiningRequestDraft {
@@ -73,8 +72,8 @@ export interface DiningRequestDraft {
 export type OfferStatus = "pending" | "selected" | "rejected" | "canceled" | "expired";
 
 export interface Offer {
-  id: string;
-  diningRequestId: string;
+  id: number;
+  diningRequestId: number;
   restaurantId: string;
   restaurantName: string;
   restaurantAddress: string;
@@ -85,16 +84,7 @@ export interface Offer {
   availableTime: string;
   ownerComment: string;
   status: OfferStatus;
-  expiresAt?: string;
   createdAt: string;
-  updatedAt?: string;
-  requestTitle?: string;
-  requestDiningDate?: string;
-  requestDiningTime?: string;
-  requestHeadCount?: number;
-  requestRegion?: string;
-  requestBudgetPerPerson?: number;
-  requestStatus?: DiningRequestStatus;
 }
 
 export interface OfferDraft {
@@ -105,12 +95,6 @@ export interface OfferDraft {
   seatDescription: string;
   availableTime: string;
   ownerComment: string;
-}
-
-export interface OfferRestaurant {
-  id: string;
-  name: string;
-  address: string;
 }
 
 export type RestaurantStatus = "pending" | "approved" | "suspended";
@@ -144,6 +128,21 @@ export interface RestaurantDraft {
   imageUris: string[];
 }
 
+export interface ApiRestaurant {
+  id: string;
+  ownerId: string;
+  name: string;
+  address: string;
+  category: string;
+  description: string | null;
+  maxCapacity: number;
+  hasRoom: boolean;
+  hasParking: boolean;
+  openTime: string;
+  closeTime: string;
+  status: RestaurantStatus;
+}
+
 export type ReservationStatus = "pending" | "confirmed" | "completed" | "canceled" | "rejected";
 
 export interface Reservation {
@@ -160,8 +159,6 @@ export interface Reservation {
   userPhone: string;
   createdAt: string;
   reviewed?: boolean;
-  diningRequestId?: string;
-  offerId?: string;
 }
 
 export interface ReservationDraft {
@@ -180,3 +177,15 @@ export interface ReviewDraft {
 }
 
 export type Feedback = { type: "success" | "error" | "info"; message: string } | null;
+
+export interface ApiReview {
+  id: string;
+  reservationId: string;
+  restaurantId: string;
+  userId: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
