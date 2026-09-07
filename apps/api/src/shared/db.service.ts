@@ -2,6 +2,22 @@ import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 const REQUIRED_SCHEMA_VERSION = "202607280001_initial_schema";
+const DEFAULT_POOL_MAX = 10;
+const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
+const DEFAULT_CONNECTION_TIMEOUT_MS = 5_000;
+const DEFAULT_STATEMENT_TIMEOUT_MS = 5_000;
+
+function positiveIntegerFromEnv(name: string, fallback: number) {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name}은 양의 정수여야 합니다.`);
+  }
+
+  return value;
+}
 
 @Injectable()
 export class DbService implements OnModuleDestroy {
@@ -15,6 +31,19 @@ export class DbService implements OnModuleDestroy {
     if (!this.pool) {
       this.pool = new Pool({
         connectionString: process.env.DATABASE_URL,
+        max: positiveIntegerFromEnv("DB_POOL_MAX", DEFAULT_POOL_MAX),
+        idleTimeoutMillis: positiveIntegerFromEnv(
+          "DB_IDLE_TIMEOUT_MS",
+          DEFAULT_IDLE_TIMEOUT_MS,
+        ),
+        connectionTimeoutMillis: positiveIntegerFromEnv(
+          "DB_CONNECTION_TIMEOUT_MS",
+          DEFAULT_CONNECTION_TIMEOUT_MS,
+        ),
+        statement_timeout: positiveIntegerFromEnv(
+          "DB_STATEMENT_TIMEOUT_MS",
+          DEFAULT_STATEMENT_TIMEOUT_MS,
+        ),
       });
     }
 

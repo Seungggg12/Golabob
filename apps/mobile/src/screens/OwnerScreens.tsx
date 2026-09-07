@@ -15,12 +15,15 @@ function Metrics({ items }: { items: Array<{ label: string; value: number; accen
 }
 
 export function OwnerHomeScreen({ requests, offers, reservations, onNavigate, onSelectRequest }: { requests: DiningRequest[]; offers: Offer[]; reservations: Reservation[]; onNavigate: Navigate; onSelectRequest: (request: DiningRequest) => void }) {
-  const open = requests.filter((request) => request.status === "open");
-  const pendingReservations = reservations.filter((reservation) => reservation.status === "pending");
+  const open = useMemo(() => requests.filter((request) => request.status === "open"), [requests]);
+  const pendingReservationCount = useMemo(
+    () => reservations.reduce((count, reservation) => count + Number(reservation.status === "pending"), 0),
+    [reservations],
+  );
   return (
     <Page eyebrow="OWNER DASHBOARD" title="새로운 회식 기회가 왔어요" subtitle="우리 식당과 잘 맞는 요청을 확인해보세요.">
-      <Metrics items={[{ label: "새 요청", value: open.length, accent: true }, { label: "보낸 오퍼", value: offers.length }, { label: "예약 대기", value: pendingReservations.length }]} />
-      {pendingReservations.length ? <TouchableOpacity onPress={() => onNavigate("ownerReservations")} style={styles.notice}><Text style={styles.noticeIcon}>!</Text><View style={styles.grow}><Text style={styles.noticeTitle}>확인이 필요한 예약 {pendingReservations.length}건</Text><Text style={styles.noticeCopy}>예약 요청을 확정하거나 거절해주세요.</Text></View><Text style={styles.chevron}>›</Text></TouchableOpacity> : null}
+      <Metrics items={[{ label: "새 요청", value: open.length, accent: true }, { label: "보낸 오퍼", value: offers.length }, { label: "예약 대기", value: pendingReservationCount }]} />
+      {pendingReservationCount ? <TouchableOpacity onPress={() => onNavigate("ownerReservations")} style={styles.notice}><Text style={styles.noticeIcon}>!</Text><View style={styles.grow}><Text style={styles.noticeTitle}>확인이 필요한 예약 {pendingReservationCount}건</Text><Text style={styles.noticeCopy}>예약 요청을 확정하거나 거절해주세요.</Text></View><Text style={styles.chevron}>›</Text></TouchableOpacity> : null}
       <SectionHeader action={`${reservations.length}건`} onAction={() => onNavigate("ownerReservations")} title="예약 일정" />
       {reservations.length === 0 ? <EmptyState description="새 예약이 접수되면 일정이 표시됩니다." title="등록된 예약이 없어요" /> : reservations.slice(0, 3).map((reservation) => <Card key={reservation.id} onPress={() => onNavigate("ownerReservations")}><View style={styles.between}><View><Text style={styles.scheduleDate}>{reservation.reservationDate}</Text><Text style={styles.scheduleTime}>{reservation.reservationTime}</Text></View><View style={styles.grow}><Text style={styles.cardTitle}>{reservation.restaurantName}</Text><Text style={styles.cardCopy}>{reservation.headCount}명 · {reservation.userName}</Text></View><Badge label={reservationLabel(reservation.status)} tone={tone(reservation.status)} /></View></Card>)}
       <SectionHeader action="보낸 오퍼" onAction={() => onNavigate("ownerOffers")} title="추천 회식 요청" />

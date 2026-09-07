@@ -10,16 +10,26 @@ const reservationStatus = (status: Reservation["status"]) => ({ pending: "예약
 const toneForStatus = (status: string): "accent" | "success" | "danger" | "muted" => status === "confirmed" || status === "selected" ? "success" : status === "pending" || status === "open" ? "accent" : status === "canceled" || status === "rejected" ? "danger" : "muted";
 
 export function UserHomeScreen({ requests, offers, onNavigate, onSelectRequest }: { requests: DiningRequest[]; offers: Offer[]; onNavigate: Navigate; onSelectRequest: (request: DiningRequest) => void }) {
-  const active = requests.filter((request) => request.status === "open");
+  const activeRequestCount = useMemo(
+    () => requests.reduce((count, request) => count + Number(request.status === "open"), 0),
+    [requests],
+  );
+  const offerCountByRequest = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const offer of offers) {
+      counts.set(offer.diningRequestId, (counts.get(offer.diningRequestId) || 0) + 1);
+    }
+    return counts;
+  }, [offers]);
   return (
     <Page eyebrow="GOOD EVENING" title="오늘의 회식 장소를 찾아보세요!" subtitle="조건만 알려주면 식당이 먼저 맞춤 제안을 보내요.">
       <View style={styles.userCta}><Text style={styles.ctaEyebrow}>NEW REQUEST</Text><Text style={styles.ctaTitle}>회식 요청 등록하기</Text><Text style={styles.ctaCopy}>장소, 인원, 예산을 알려주세요.</Text><Button label="시작하기" onPress={() => onNavigate("createRequest")} variant="secondary" /></View>
       <SectionHeader action="새 요청" onAction={() => onNavigate("createRequest")} title="내 회식 요청" />
       {requests.length === 0 ? <EmptyState actionLabel="요청 등록" description="조건을 등록하면 맞춤 오퍼를 받을 수 있어요." onAction={() => onNavigate("createRequest")} title="아직 등록한 요청이 없어요" /> : requests.map((request) => {
-        const count = offers.filter((offer) => offer.diningRequestId === request.id).length;
+        const count = offerCountByRequest.get(request.id) || 0;
         return <Card key={request.id} onPress={() => onSelectRequest(request)}><View style={styles.between}><Badge label={requestStatus(request.status)} tone={toneForStatus(request.status)} /><Text style={styles.cardHint}>{request.region}</Text></View><Text style={styles.cardTitle}>{request.title}</Text><Text style={styles.cardCopy}>{request.diningDate} {request.diningTime}</Text><View style={styles.requestMeta}><Text style={styles.metaStrong}>{request.headCount}명</Text><Text style={styles.dot}>·</Text><Text style={styles.metaStrong}>인당 {money(request.budgetPerPerson)}</Text><View style={styles.grow} /><Badge label={`오퍼 ${count}개`} tone={count ? "accent" : "muted"} /></View></Card>;
       })}
-      {active.length > 0 ? <InlineMessage message={`현재 ${active.length}개의 요청에서 오퍼를 모집하고 있습니다.`} /> : null}
+      {activeRequestCount > 0 ? <InlineMessage message={`현재 ${activeRequestCount}개의 요청에서 오퍼를 모집하고 있습니다.`} /> : null}
     </Page>
   );
 }
