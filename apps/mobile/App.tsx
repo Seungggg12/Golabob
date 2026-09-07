@@ -4,6 +4,7 @@ import {
   clearStoredSession,
   mobileAuthApi,
   mobileDiningOfferApi,
+  requestJson,
   replaceAccessToken,
   restoreAccessToken,
   restoreActiveRole,
@@ -21,8 +22,6 @@ import { AppScreen, ApiRestaurant, ApiReview, DiningRequest, DiningRequestDraft,
 const authenticatedScreens = new Set<AppScreen>([
   "roleSelection", "userHome", "createRequest", "requestWaiting", "offers", "confirmation", "restaurantList", "restaurantDetail", "myReservation", "writeReview", "ownerHome", "ownerRequestDetail", "createOffer", "ownerOffers", "ownerOfferDetail", "myRestaurants", "restaurantRegister", "ownerReservations", "myPage",
 ]);
-
-const API_BASE_URL = "http://localhost:3000/api";
 
 const mapApiRestaurant = (item: ApiRestaurant): Restaurant => ({
   id: item.id,
@@ -80,18 +79,7 @@ export default function App() {
   const [reviews, setReviews] = useState<ApiReview[]>([]);
 
   const loadRestaurants = useCallback(async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/restaurants`,
-    );
-  
-    if (!response.ok) {
-      throw new Error(
-        "식당 목록을 불러오지 못했습니다.",
-      );
-    }
-  
-    const data =
-      (await response.json()) as ApiRestaurant[];
+    const data = await requestJson<ApiRestaurant[]>("/api/restaurants", {}, false);
   
     setRestaurants(
       data.map(mapApiRestaurant),
@@ -99,24 +87,7 @@ export default function App() {
   }, []);
 
   const loadOwnerRestaurants = useCallback(async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/owner/restaurants`,
-      {
-        headers: {
-          "x-user-id": user.id,
-          "x-user-role": "OWNER",
-        },
-      },
-    );
-  
-    if (!response.ok) {
-      throw new Error(
-        "내 식당 목록을 불러오지 못했습니다.",
-      );
-    }
-  
-    const data =
-      (await response.json()) as ApiRestaurant[];
+    const data = await requestJson<ApiRestaurant[]>("/api/owner/restaurants");
   
     const mapped =
       data.map(mapApiRestaurant);
@@ -132,30 +103,16 @@ export default function App() {
 
 
   const loadMyReviews = useCallback(async () => {
-    const response = await fetch(`${API_BASE_URL}/reviews/me`, { headers: { "x-user-id": user.id, "x-user-role": "USER" } });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "내 리뷰를 불러오지 못했습니다.");
-    }
-  
-    const data = (await response.json()) as ApiReview[];
+    const data = await requestJson<ApiReview[]>("/api/reviews/me");
     setReviews(data);
     return data;
-  }, [user.id]);
+  }, []);
 
   const loadMyReservations = useCallback(async () => {
-    const [reservationResponse, reviewData] = await Promise.all([
-      fetch(`${API_BASE_URL}/reservations/me`, { headers: { "x-user-id": user.id, "x-user-role": "USER" } }),
+    const [data, reviewData] = await Promise.all([
+      requestJson<any[]>("/api/reservations/me"),
       loadMyReviews(),
     ]);
-  
-    if (!reservationResponse.ok) {
-      const error = await reservationResponse.json().catch(() => null);
-      throw new Error(error?.message ?? "내 예약 목록을 불러오지 못했습니다.");
-    }
-  
-    const data = await reservationResponse.json();
     const reviewedIds = new Set(reviewData.map((review) => review.reservationId));
   
     const mapped: Reservation[] = data.map((item: any) => ({
@@ -178,14 +135,7 @@ export default function App() {
   }, [loadMyReviews, user.id, user.name, user.phone]);
 
   const loadOwnerReservations = useCallback(async () => {
-    const response = await fetch(`${API_BASE_URL}/owner/reservations`, { headers: { "x-user-id": user.id, "x-user-role": "OWNER" } });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "사장 예약 목록을 불러오지 못했습니다.");
-    }
-  
-    const data = await response.json();
+    const data = await requestJson<any[]>("/api/owner/reservations");
   
     const mapped: Reservation[] = data.map((item: any) => ({
       id: item.id,
@@ -204,7 +154,7 @@ export default function App() {
     }));
   
     setReservations(mapped);
-  }, [user.id]);
+  }, []);
 
   const navigate = useCallback((next: AppScreen) => {
     if (authenticatedScreens.has(next) && next !== "roleSelection" && !signedIn) {
@@ -415,14 +365,10 @@ export default function App() {
   };
 
   const createDirectReservation = async (draft: ReservationDraft) => {
-    const response = await fetch(`${API_BASE_URL}/reservations`, { method: "POST", headers: { "Content-Type": "application/json", "x-user-id": user.id, "x-user-role": "USER" }, body: JSON.stringify(draft) });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "예약 등록에 실패했습니다.");
-    }
-  
-    const data = await response.json();
+    const data = await requestJson<any>("/api/reservations", {
+      method: "POST",
+      body: JSON.stringify(draft),
+    });
   
     const restaurant = restaurants.find((item) => item.id === data.restaurantId);
   
@@ -435,14 +381,9 @@ export default function App() {
   
 
   const cancelReservation = async (reservation: Reservation) => {
-    const response = await fetch(`${API_BASE_URL}/reservations/${reservation.id}/cancel`, { method: "PATCH", headers: { "x-user-id": user.id, "x-user-role": "USER" } });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "예약 취소에 실패했습니다.");
-    }
-  
-    const data = await response.json();
+    const data = await requestJson<any>(`/api/reservations/${reservation.id}/cancel`, {
+      method: "PATCH",
+    });
   
     setReservations((current) => current.map((item) => item.id === reservation.id ? { ...item, status: data.status } : item));
   };
@@ -450,14 +391,10 @@ export default function App() {
 
 
   const submitReview = async (review: ReviewDraft) => {
-    const response = await fetch(`${API_BASE_URL}/reviews`, { method: "POST", headers: { "Content-Type": "application/json", "x-user-id": user.id, "x-user-role": "USER" }, body: JSON.stringify(review) });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "리뷰 등록에 실패했습니다.");
-    }
-  
-    await response.json();
+    await requestJson<ApiReview>("/api/reviews", {
+      method: "POST",
+      body: JSON.stringify(review),
+    });
   
     setReservations((current) => current.map((item) => item.id === review.reservationId ? { ...item, reviewed: true } : item));
   
@@ -468,12 +405,7 @@ export default function App() {
     const review = reviews.find((item) => item.reservationId === reservation.id);
     if (!review) throw new Error("삭제할 리뷰를 찾을 수 없습니다.");
   
-    const response = await fetch(`${API_BASE_URL}/reviews/${review.id}`, { method: "DELETE", headers: { "x-user-id": user.id, "x-user-role": "USER" } });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "리뷰 삭제에 실패했습니다.");
-    }
+    await requestJson<unknown>(`/api/reviews/${review.id}`, { method: "DELETE" });
   
     setReviews((current) => current.filter((item) => item.id !== review.id));
     setReservations((current) => current.map((item) => item.id === reservation.id ? { ...item, reviewed: false } : item));
@@ -505,12 +437,7 @@ export default function App() {
   };
 
   const deleteRestaurant = async (restaurant: Restaurant) => {
-    const response = await fetch(`${API_BASE_URL}/owner/restaurants/${restaurant.id}`, { method: "DELETE", headers: { "x-user-id": user.id, "x-user-role": "OWNER" } });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "식당 삭제에 실패했습니다.");
-    }
+    await requestJson<unknown>(`/api/owner/restaurants/${restaurant.id}`, { method: "DELETE" });
   
     setRestaurants((current) => current.filter((item) => item.id !== restaurant.id));
     if (selectedRestaurantId === restaurant.id) setSelectedRestaurantId(null);
@@ -522,14 +449,10 @@ export default function App() {
     const body = { name: draft.name.trim(), address: draft.address.trim(), category: draft.category.trim(), description: draft.description.trim(), maxCapacity: draft.maxCapacity, hasRoom: draft.facilities.includes("프라이빗 룸"), hasParking: draft.facilities.includes("주차 가능"), openTime, closeTime };
   
     if (!restaurant) {
-      const response = await fetch(`${API_BASE_URL}/owner/restaurants`, { method: "POST", headers: { "Content-Type": "application/json", "x-user-id": user.id, "x-user-role": "OWNER" }, body: JSON.stringify(body) });
-  
-      if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        throw new Error(error?.message ?? "식당 등록에 실패했습니다.");
-      }
-  
-      const data = (await response.json()) as ApiRestaurant;
+      const data = await requestJson<ApiRestaurant>("/api/owner/restaurants", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
   
       setRestaurants((current) => [mapApiRestaurant(data), ...current]);
   
@@ -538,14 +461,10 @@ export default function App() {
       return;
     }
   
-    const response = await fetch(`${API_BASE_URL}/owner/restaurants/${restaurant.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", "x-user-id": user.id, "x-user-role": "OWNER" }, body: JSON.stringify(body) });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "식당 수정에 실패했습니다.");
-    }
-  
-    const data = (await response.json()) as ApiRestaurant;
+    const data = await requestJson<ApiRestaurant>(`/api/owner/restaurants/${restaurant.id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   
     setRestaurants((current) => current.map((item) => item.id === restaurant.id ? mapApiRestaurant(data) : item));
   
@@ -560,14 +479,10 @@ export default function App() {
       throw new Error("예약 확정 또는 거절만 처리할 수 있습니다.");
     }
   
-    const response = await fetch(`${API_BASE_URL}/owner/reservations/${reservation.id}/${action}`, { method: "PATCH", headers: { "x-user-id": user.id, "x-user-role": "OWNER" } });
-  
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new Error(error?.message ?? "예약 상태 변경에 실패했습니다.");
-    }
-  
-    const data = await response.json();
+    const data = await requestJson<any>(
+      `/api/owner/reservations/${reservation.id}/${action}`,
+      { method: "PATCH" },
+    );
   
     setReservations((current) => current.map((item) => item.id === reservation.id ? { ...item, status: data.status } : item));
   };
