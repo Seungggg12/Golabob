@@ -59,8 +59,8 @@ export default function App() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>(mockRestaurants);
   const [reservations, setReservations] = useState<Reservation[]>(mockReservations);
-  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
-  const [selectedOfferId, setSelectedOfferId] = useState<number | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | number | null>(null);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | number | null>(null);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
   const [editingRestaurantId, setEditingRestaurantId] = useState<string | null>(null);

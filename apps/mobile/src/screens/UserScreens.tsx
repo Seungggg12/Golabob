@@ -15,10 +15,15 @@ export function UserHomeScreen({ requests, offers, onNavigate, onSelectRequest }
     [requests],
   );
   const offerCountByRequest = useMemo(() => {
-    const counts = new Map<number, number>();
+    const counts = new Map<string | number, number>();
+  
     for (const offer of offers) {
-      counts.set(offer.diningRequestId, (counts.get(offer.diningRequestId) || 0) + 1);
+      counts.set(
+        offer.diningRequestId,
+        (counts.get(offer.diningRequestId) || 0) + 1,
+      );
     }
+  
     return counts;
   }, [offers]);
   return (
