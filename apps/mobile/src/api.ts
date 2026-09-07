@@ -86,7 +86,11 @@ export async function storeActiveRole(role: Role) {
   }
 }
 
-async function requestJson<T>(path: string, options: RequestInit = {}, authenticated = true) {
+export async function requestJson<T>(
+  path: string,
+  options: RequestInit = {},
+  authenticated = true,
+) {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
